@@ -275,7 +275,7 @@ export const HelpGuide: React.FC<HelpGuideProps> = ({ onNavigateTab }) => {
                 </p>
                 <ul className="text-xs text-slate-400 space-y-1.5 list-disc list-inside">
                   <li>
-                    Click the <strong>Currency pill</strong> (e.g. <span className="text-emerald-400 font-mono font-medium">$ USD</span>) to select from 16+ global currencies, pick your country, and set your timezone.
+                    Click the <strong>Currency pill</strong> (e.g. <span className="text-emerald-400 font-mono font-medium">$ USD</span> or <span className="text-emerald-400 font-mono font-medium">Rs LKR</span>) to select from 40+ global currencies (including LKR, USD, EUR, GBP, INR), pick your country, and set your timezone.
                   </li>
                   <li>
                     Click the <strong>Sun / Moon icon</strong> to toggle between modern Dark mode and clean Light mode at any time.
@@ -683,7 +683,7 @@ export const HelpGuide: React.FC<HelpGuideProps> = ({ onNavigateTab }) => {
                 <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1.5">
                   <h4 className="text-xs font-bold text-white">Can I change my currency and timezone?</h4>
                   <p className="text-xs text-slate-400 leading-relaxed">
-                    Yes! Click the <strong>Currency pill</strong> in the navigation header to open Preferences, select from over 16 global currencies (USD, EUR, GBP, INR, JPY, CAD, AUD, etc.), and set your preferred timezone. All numbers across the app will adapt instantly.
+                    Yes! Click the <strong>Currency pill</strong> in the navigation header to open Preferences, select from over 40 global currencies (LKR, USD, EUR, GBP, INR, JPY, CAD, AUD, etc.), and set your preferred timezone. All numbers across the app will adapt instantly.
                   </p>
                 </div>
 

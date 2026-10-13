@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { Account } from '../types';
 import { supabase } from '../supabaseClient';
-import { usePreferences } from '../context/PreferencesContext';
+import { usePreferences, CURRENCIES } from '../context/PreferencesContext';
 import { Wallet, Plus, Trash2, AlertCircle, Loader2 } from 'lucide-react';
 
 interface AccountManagerProps {
@@ -190,13 +190,11 @@ export const AccountManager: React.FC<AccountManagerProps> = ({
                   onChange={(e) => setCurrency(e.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                 >
-                  <option value="USD">USD ($)</option>
-                  <option value="EUR">EUR (€)</option>
-                  <option value="GBP">GBP (£)</option>
-                  <option value="CAD">CAD ($)</option>
-                  <option value="AUD">AUD ($)</option>
-                  <option value="INR">INR (₹)</option>
-                  <option value="LKR">LKR (Rs)</option>
+                  {CURRENCIES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.code} - {c.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
