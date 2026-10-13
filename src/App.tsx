@@ -28,7 +28,6 @@ import {
   ArrowRight,
   CheckSquare,
   CreditCard,
-  AlertTriangle,
 } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 
@@ -37,7 +36,6 @@ export function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authChecking, setAuthChecking] = useState(true);
   const [dataLoading, setDataLoading] = useState(false);
-  const [migrationNotice, setMigrationNotice] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<ErpTab>('dashboard');
 
@@ -131,8 +129,8 @@ export function App() {
           .order('due_date', { ascending: true, nullsFirst: false })
           .order('created_at', { ascending: false });
 
-        if (taskErr && taskErr.code === '42P01') {
-          setMigrationNotice('Please run supabase/migrations/20261013_personal_erp_expansion.sql in your Supabase SQL editor.');
+        if (taskErr) {
+          console.warn('Tasks table unavailable:', taskErr);
         } else {
           setTasks(taskData || []);
         }
@@ -227,30 +225,7 @@ export function App() {
           </div>
         )}
 
-        {migrationNotice && (
-          <div className="mb-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-              <span>
-                <strong>ERP Tables Ready:</strong> Execute <code className="bg-slate-900 px-2 py-0.5 rounded text-amber-200">supabase/migrations/20261013_personal_erp_expansion.sql</code> in your Supabase SQL Editor to enable persistent cloud storage for Tasks, Assets &amp; Subscriptions.
-              </span>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <button
-                onClick={() => setActiveTab('help')}
-                className="underline text-amber-300 hover:text-white font-semibold cursor-pointer"
-              >
-                View Setup Guide →
-              </button>
-              <button
-                onClick={() => setMigrationNotice(null)}
-                className="text-amber-400 hover:text-white px-2 py-1 cursor-pointer"
-              >
-                Dismiss
-              </button>
-            </div>
-          </div>
-        )}
+
 
         {/* ========================================================================= */}
         {/* EXECUTIVE DASHBOARD (OVERVIEW) */}
