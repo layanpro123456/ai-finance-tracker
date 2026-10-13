@@ -25,6 +25,10 @@ import {
   Car,
   MapPin,
   Gauge,
+  Rocket,
+  Cpu,
+  Camera,
+  HeartPulse,
 } from 'lucide-react';
 
 interface HelpGuideProps {
@@ -40,6 +44,7 @@ type GuideSection =
   | 'subscriptions'
   | 'contacts'
   | 'prompts'
+  | 'future'
   | 'faq';
 
 const SECTIONS: { id: GuideSection; label: string; icon: React.ReactNode; desc: string; keywords: string }[] = [
@@ -98,6 +103,13 @@ const SECTIONS: { id: GuideSection; label: string; icon: React.ReactNode; desc: 
     icon: <Sparkles className="w-4 h-4 text-amber-400" />,
     desc: 'Natural language tips',
     keywords: 'ai natural language prompts cookbook logger assistant automated typing examples',
+  },
+  {
+    id: 'future',
+    label: 'Future Developments',
+    icon: <Rocket className="w-4 h-4 text-purple-400" />,
+    desc: 'Upcoming smart devices & AI roadmap',
+    keywords: 'future roadmap upcoming developments smart devices camera ocr receipt scan wearable health biometrics sleep stress iot home assistant',
   },
   {
     id: 'faq',
@@ -516,6 +528,16 @@ export const HelpGuide: React.FC<HelpGuideProps> = ({ onNavigateTab }) => {
                     At the end of any commute leg or in your daily mobility summary, click <strong>&ldquo;Log Commute Expense&rdquo;</strong> to record the estimated fuel or transit fare directly into your ledger and adjust your checking account balance automatically.
                   </p>
                 </div>
+
+                <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Gauge className="w-4 h-4 text-purple-400" />
+                    <h3 className="text-sm font-bold text-white">Interactive Desktop Route Simulator</h3>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Testing on a desktop computer? Switch the toggle from <em>Device GPS</em> to <strong>Route Simulator</strong>. Select from scenarios like <em>&ldquo;Walk to Supermarket&rdquo;</em>, <em>&ldquo;City Commute with Heavy Traffic Jam&rdquo;</em>, or <em>&ldquo;Highway Express&rdquo;</em>, and use the dynamic speed slider (0–100 km/h) to test live speedometers and geofence alerts without leaving your desk!
+                  </p>
+                </div>
               </div>
 
               <button
@@ -727,6 +749,80 @@ export const HelpGuide: React.FC<HelpGuideProps> = ({ onNavigateTab }) => {
                 <p>
                   Before saving any AI entry, a review dialog appears allowing you to verify the amount, date, account, and category. You can also tick <strong>&ldquo;Also register as Personal Asset&rdquo;</strong> or <strong>&ldquo;Also add Follow-up Task&rdquo;</strong> to update multiple areas of your life in one action!
                 </p>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* FUTURE DEVELOPMENTS & UPCOMING INNOVATIONS */}
+          {/* ========================================================================= */}
+          {activeSection === 'future' && (
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl">
+              <div>
+                <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                  <Rocket className="w-5 h-5 text-purple-400" />
+                  <span>Future Developments &amp; Smart Device Roadmap</span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  Upcoming innovations that bridge your physical life, hardware devices, and personal finance.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <Camera className="w-4 h-4 text-emerald-400" />
+                    <h3 className="text-sm font-bold text-white">1. Multimodal Camera Receipt &amp; Invoice OCR</h3>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Snap a picture of paper receipts or upload PDF invoices directly on your mobile device. Powered by Gemini 2.0 Flash Vision, the system will automatically parse the merchant, date, total amount, tax, and itemized rows, filing them directly into your ledger with an attached receipt image.
+                  </p>
+                </div>
+
+                <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <HeartPulse className="w-4 h-4 text-rose-400" />
+                    <h3 className="text-sm font-bold text-white">2. Wearable Health &amp; Biometric Synchronization</h3>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Direct integration with Apple HealthKit, Android Health Connect, and smart rings (Oura/Whoop):
+                  </p>
+                  <ul className="text-xs text-slate-400 space-y-1.5 list-disc list-inside">
+                    <li><strong className="text-white">Health-to-Wealth Insights:</strong> Statistical correlation analyzing how poor sleep (&lt; 6h) or high stress (low HRV) triggers late-night impulse shopping.</li>
+                    <li><strong className="text-white">Gym Subscription Cost-Per-Visit:</strong> Automatically compares your monthly gym membership fee against your logged workout frequency to calculate your actual unit cost per visit!</li>
+                    <li><strong className="text-white">Habit Auto-Validation:</strong> Logging a workout automatically checks off your daily fitness task in Operations.</li>
+                  </ul>
+                </div>
+
+                <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <Cpu className="w-4 h-4 text-cyan-400" />
+                    <h3 className="text-sm font-bold text-white">3. Smart Home &amp; IoT Utility Webhooks</h3>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Connect Home Assistant and smart plugs: automatically record monthly electricity kilowatt consumption into your Housing &amp; Utilities category, and send daily morning E-Ink / smart display briefings with your net worth and pending bills.
+                  </p>
+                </div>
+
+                <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-amber-400" />
+                    <h3 className="text-sm font-bold text-white">4. Circadian Impulse Spending Guardrail</h3>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Late-night online purchases made between 11:00 PM and 4:00 AM carry the highest rate of buyer remorse. Apex LifeOS will offer an optional 24-hour cooling-off review delay before deducting balances, helping you maintain financial discipline.
+                  </p>
+                </div>
+
+                <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <Car className="w-4 h-4 text-blue-400" />
+                    <h3 className="text-sm font-bold text-white">5. Vehicle Bluetooth &amp; OBD-II Auto-Commute Sync</h3>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Hands-free automatic commute start and end detection when your smartphone connects and disconnects from your vehicle&apos;s Bluetooth audio or Apple CarPlay / Android Auto.
+                  </p>
+                </div>
               </div>
             </div>
           )}

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Apex LifeOS — Official Marketing Poster & Feature Blueprint</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #030712;
+      color: #f3f4f6;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .neon-glow-emerald {
+      box-shadow: 0 0 60px -10px rgba(16, 185, 129, 0.35);
+    }
+    .neon-border-emerald {
+      border: 1px solid rgba(16, 185, 129, 0.35);
+    }
+    .radial-bg {
+      background: radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.18) 0%, rgba(3, 7, 18, 0.98) 75%);
+    }
+    @media print {
+      .no-print {
+        display: none !important;
+      }
+      body {
+        background-color: #030712 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen radial-bg flex flex-col items-center justify-center p-4 sm:p-8">
+
+  <!-- Print & Download Action Ribbon -->
+  <div class="no-print w-full max-w-5xl flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
+    <div class="flex items-center gap-2">
+      <div class="w-3 h-3 rounded-full bg-emerald-400 animate-ping"></div>
+      <span class="text-xs font-mono font-bold text-emerald-400 uppercase tracking-wider">Apex LifeOS • Official Feature Showcase &amp; Poster</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <button onclick="window.print()" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-2 transition cursor-pointer shadow-lg shadow-emerald-500/20">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+        <span>Print / Save as PDF Flyer</span>
+      </button>
+      <a href="/" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition">
+        Launch App →
+      </a>
+    </div>
+  </div>
+
+  <!-- The Poster Container -->
+  <div class="w-full max-w-5xl bg-slate-950/85 backdrop-blur-2xl neon-border-emerald rounded-3xl overflow-hidden shadow-2xl neon-glow-emerald border border-slate-800">
+    
+    <!-- Top Hero Section -->
+    <div class="p-8 sm:p-14 text-center border-b border-slate-850 relative overflow-hidden">
+      <div class="absolute -top-28 left-1/2 -translate-x-1/2 w-[32rem] h-[32rem] bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-mono font-bold tracking-wider uppercase mb-6">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        Personal ERP &amp; Mobility Operating System
+      </div>
+
+      <h1 class="text-4xl sm:text-6xl font-extrabold text-white tracking-tight mb-4">
+        APEX <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400">LIFEOS</span>
+      </h1>
+
+      <p class="text-lg sm:text-2xl text-slate-200 max-w-3xl mx-auto font-semibold leading-relaxed">
+        Your Money. Your Movement. Your Life Operating System.
+      </p>
+
+      <p class="text-xs sm:text-sm text-slate-400 max-w-2xl mx-auto mt-2">
+        The first intelligent platform connecting your balance sheets, physical travel telemetry, proximity payment alerts, and daily operations into one unified command center.
+      </p>
+    </div>
+
+    <!-- Centerpiece Graphic Display -->
+    <div class="p-4 sm:p-8 bg-slate-900/50 border-b border-slate-850 flex justify-center">
+      <div class="relative rounded-2xl overflow-hidden shadow-2xl border border-slate-800 max-w-2xl w-full">
+        <img src="poster.jpg" alt="Apex LifeOS Hardware &amp; Mobility Interface" class="w-full h-auto object-cover rounded-xl" />
+        <div class="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-transparent to-transparent pointer-events-none"></div>
+        <div class="absolute bottom-4 left-4 right-4 flex items-center justify-between text-xs font-mono text-slate-300 flex-wrap gap-2">
+          <span class="px-3 py-1 rounded-lg bg-black/70 backdrop-blur-md border border-slate-750">
+            📍 Geofence Radar: 350m
+          </span>
+          <span class="px-3 py-1 rounded-lg bg-black/70 backdrop-blur-md border border-slate-750 text-amber-400 font-bold">
+            🚦 Stop-and-Go Congestion Protected
+          </span>
+          <span class="px-3 py-1 rounded-lg bg-black/70 backdrop-blur-md border border-slate-750 text-emerald-400 font-bold">
+            ⚡ 42 km/h Commute Detected
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section Header: Complete Feature Ecosystem -->
+    <div class="px-8 sm:px-12 pt-10 pb-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+        <div>
+          <h2 class="text-xl font-bold text-white tracking-tight">Complete Ecosystem Features</h2>
+          <p class="text-xs text-slate-400">Everything you need to master your personal finance, daily routine, and spatial movement</p>
+        </div>
+        <span class="text-xs font-mono text-emerald-400 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 font-bold hidden sm:inline">
+          10 Integrated Modules
+        </span>
+      </div>
+    </div>
+
+    <!-- Comprehensive Feature Grid (Brief & High-Impact Descriptions) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 p-8 sm:p-12 pt-4">
+      
+      <!-- 1. AI Natural Language Wealth -->
+      <div class="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-2.5 hover:border-emerald-500/40 transition">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-bold text-sm">
+            ⚡
+          </div>
+          <h3 class="text-sm font-bold text-white">AI Wealth &amp; 40+ Currencies</h3>
+        </div>
+        <p class="text-xs text-slate-300 leading-relaxed">
+          Log expenses in everyday speech: <em>&ldquo;Spent Rs 4,500 on dinner at Keells&rdquo;</em> or <em>&ldquo;Paid €35 for groceries&rdquo;</em>. Powered by Google Gemini Flash with automatic category detection and zero hardcoded symbols across USD, LKR, EUR, GBP, and INR.
+        </p>
+      </div>
+
+      <!-- 2. Location Geofence Sentinel -->
+      <div class="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-2.5 hover:border-teal-500/40 transition">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20 flex items-center justify-center font-bold text-sm">
+            📍
+          </div>
+          <h3 class="text-sm font-bold text-white">Geofenced Payment Sentinel</h3>
+        </div>
+        <p class="text-xs text-slate-300 leading-relaxed">
+          Register waypoints (100m–1500m radii). Arriving at a supermarket alerts you to your remaining produce budget; arriving at your landlord prompts 1-click rent settlement; meeting a friend reminds you to settle your dinner split.
+        </p>
+      </div>
+
+      <!-- 3. Traffic-Resilient Commute Engine -->
+      <div class="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-2.5 hover:border-blue-500/40 transition">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center justify-center font-bold text-sm">
+            🚗
+          </div>
+          <h3 class="text-sm font-bold text-white">Traffic-Resilient Commute</h3>
+        </div>
+        <p class="text-xs text-slate-300 leading-relaxed">
+          Haversine velocity tracking classifies walking, cycling, and driving. In stop-and-go city traffic (0–15 km/h) or red lights, the engine remembers peak speed history and locks into vehicle mode rather than misclassifying your drive as walking.
+        </p>
+      </div>
+
+      <!-- 4. 1-Click Commute Ledger -->
+      <div class="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-2.5 hover:border-sky-500/40 transition">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/20 flex items-center justify-center font-bold text-sm">
+            ⛽
+          </div>
+          <h3 class="text-sm font-bold text-white">1-Click Commute Fuel Ledger</h3>
+        </div>
+        <p class="text-xs text-slate-300 leading-relaxed">
+          Auto-calculates daily transit distance and estimated fuel or ticket fares (with idle traffic factor). A single click records the travel cost directly into your financial ledger under Transportation and adjusts account balances.
+        </p>
+      </div>
+
+      <!-- 5. Operations & Financial Task Bridge -->
+      <div class="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-2.5 hover:border-amber-500/40 transition">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center font-bold text-sm">
+            📋
+          </div>
+          <h3 class="text-sm font-bold text-white">Financial Task Bridge</h3>
+        </div>
+        <p class="text-xs text-slate-300 leading-relaxed">
+          Connect operational to-dos directly to bank balances. Checking off payable bills (e.g. WiFi Bill) auto-deducts funds; completing receivable milestones deposits income. Features a gamified daily &ldquo;No-Spend&rdquo; streak challenge.
+        </p>
+      </div>
+
+      <!-- 6. Personal Asset Vault -->
+      <div class="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-2.5 hover:border-purple-500/40 transition">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 flex items-center justify-center font-bold text-sm">
+            📦
+          </div>
+          <h3 class="text-sm font-bold text-white">Asset Vault &amp; Net Worth</h3>
+        </div>
+        <p class="text-xs text-slate-300 leading-relaxed">
+          Catalog laptops, phones, vehicles, and collectibles. Tracks initial purchase price vs. current market valuation to compute real-time Net Worth, with automated warranty expiration countdown alerts.
+        </p>
+      </div>
+
+      <!-- 7. Subscriptions & Burn Rate -->
+      <div class="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-2.5 hover:border-rose-500/40 transition">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center justify-center font-bold text-sm">
+            🔄
+          </div>
+          <h3 class="text-sm font-bold text-white">Subscription Burn Rate Hub</h3>
+        </div>
+        <p class="text-xs text-slate-300 leading-relaxed">
+          Monitors monthly and annual recurring commitments with renewal countdowns, active bank account linking, and direct 1-click cancellation links to eliminate subscription creep.
+        </p>
+      </div>
+
+      <!-- 8. Social Ledger & IOUs -->
+      <div class="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-2.5 hover:border-indigo-500/40 transition">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center font-bold text-sm">
+            🤝
+          </div>
+          <h3 class="text-sm font-bold text-white">Social IOU &amp; Dinner Splits</h3>
+        </div>
+        <p class="text-xs text-slate-300 leading-relaxed">
+          Track peer debts seamlessly (&ldquo;They Owe Me&rdquo; vs &ldquo;I Owe Them&rdquo;). Settle balances in 1 tap, automatically recording the reimbursement transaction and updating contact ledgers.
+        </p>
+      </div>
+
+      <!-- 9. Interactive Desktop Simulator -->
+      <div class="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-2.5 hover:border-emerald-500/40 transition">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-bold text-sm">
+            🖥️
+          </div>
+          <h3 class="text-sm font-bold text-white">Desktop Route Simulator</h3>
+        </div>
+        <p class="text-xs text-slate-300 leading-relaxed">
+          Test velocities, traffic jams, and geofence arrivals without leaving your desk. Includes pre-built scenarios (Walk to Supermarket, Highway Express, City Traffic Jam) and a dynamic speed slider (0–100 km/h).
+        </p>
+      </div>
+
+    </div>
+
+    <!-- Future Developments & Upcoming Innovations Showcase -->
+    <div class="px-8 sm:px-12 pb-10">
+      <div class="p-6 rounded-2xl bg-gradient-to-r from-purple-950/40 via-slate-900/60 to-slate-950 border border-purple-500/30 space-y-3">
+        <div class="flex items-center gap-2.5">
+          <span class="px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-mono font-bold uppercase">
+            🚀 Coming in Future Developments
+          </span>
+          <span class="text-xs text-slate-400 font-medium">Smart Hardware &amp; Biometric Integration</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 text-xs">
+          <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800">
+            <strong class="text-purple-300 block mb-0.5">📷 Multimodal Camera OCR</strong>
+            <span class="text-slate-400">Snap paper receipts on mobile; Gemini 2.0 Flash Vision extracts merchant, tax, and itemized lines.</span>
+          </div>
+          <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800">
+            <strong class="text-teal-300 block mb-0.5">⌚ Health &amp; Stress Correlation</strong>
+            <span class="text-slate-400">Apple Health &amp; Health Connect sync: correlate poor sleep &amp; high HRV stress with late-night impulse buys.</span>
+          </div>
+          <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800">
+            <strong class="text-amber-300 block mb-0.5">🏠 Smart Home &amp; IoT Webhooks</strong>
+            <span class="text-slate-400">Home Assistant energy meter hooks auto-log kilowatt utility bills; morning e-ink briefings.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Footer Callout -->
+    <div class="p-8 bg-slate-900 border-t border-slate-850 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="space-y-1 text-center sm:text-left">
+        <div class="text-xs font-mono text-slate-400">100% Free Open Stack Architecture • MIT Licensed</div>
+        <div class="text-sm font-bold text-white">Supabase PostgreSQL • React TypeScript • Google Gemini Flash</div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <div class="px-3.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-[11px] font-mono text-emerald-400 font-bold">
+          🔒 Zero-Knowledge Privacy
+        </div>
+        <div class="px-3.5 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-[11px] font-mono text-emerald-300 font-bold">
+          ⚡ Offline-First PWA
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Copyright & Disclaimer -->
+  <p class="text-[11px] text-slate-600 mt-6 text-center font-mono">
+    Apex LifeOS • Personal Finance &amp; Mobility Operations ERP • Distributed under MIT License
+  </p>
+
+</body>
+</html>
