@@ -49,3 +49,83 @@ export interface ParsedTransactionData {
   transaction_date: string;
   raw_prompt: string;
 }
+
+export type TaskStatus = 'todo' | 'in_progress' | 'completed' | 'cancelled';
+export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+export type FinancialTaskType = 'payable' | 'receivable' | 'budget_task' | 'none';
+
+export interface Task {
+  id: string;
+  user_id: string;
+  title: string;
+  description?: string | null;
+  due_date?: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  is_financial: boolean;
+  financial_type: FinancialTaskType;
+  amount: number;
+  category_id?: string | null;
+  account_id?: string | null;
+  related_transaction_id?: string | null;
+  recurrence_rule?: string;
+  completed_at?: string | null;
+  created_at?: string;
+  categories?: { name: string };
+  accounts?: { name: string; currency: string };
+}
+
+export type AssetCategory = 'Electronics' | 'Vehicles' | 'Real Estate' | 'Home & Tools' | 'Jewelry & Collectibles' | 'Other';
+export type AssetStatus = 'active' | 'sold' | 'donated' | 'disposed';
+
+export interface PersonalAsset {
+  id: string;
+  user_id: string;
+  name: string;
+  category: AssetCategory;
+  purchase_price: number;
+  current_value: number;
+  purchase_date?: string | null;
+  warranty_expiry?: string | null;
+  serial_number?: string | null;
+  location?: string | null;
+  notes?: string | null;
+  status: AssetStatus;
+  linked_transaction_id?: string | null;
+  created_at?: string;
+}
+
+export type BillingCycle = 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+
+export interface Subscription {
+  id: string;
+  user_id: string;
+  name: string;
+  cost: number;
+  billing_cycle: BillingCycle;
+  next_billing_date: string;
+  category_id?: string | null;
+  account_id?: string | null;
+  is_active: boolean;
+  cancellation_url?: string | null;
+  notes?: string | null;
+  created_at?: string;
+  categories?: { name: string };
+  accounts?: { name: string; currency: string };
+}
+
+export type ContactDebtType = 'they_owe_me' | 'i_owe_them';
+
+export interface ContactsLedger {
+  id: string;
+  user_id: string;
+  contact_name: string;
+  type: ContactDebtType;
+  amount: number;
+  description?: string | null;
+  due_date?: string | null;
+  is_settled: boolean;
+  settled_at?: string | null;
+  settled_transaction_id?: string | null;
+  created_at?: string;
+}

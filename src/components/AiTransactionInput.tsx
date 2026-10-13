@@ -30,11 +30,16 @@ export const AiTransactionInput: React.FC<AiTransactionInputProps> = ({
   const [editedDescription, setEditedDescription] = useState<string>('');
   const [editedDate, setEditedDate] = useState<string>('');
 
+  // ERP Cross-Module Bridges
+  const [alsoCreateAsset, setAlsoCreateAsset] = useState(false);
+  const [alsoCreateTask, setAlsoCreateTask] = useState(false);
+
   const samplePrompts = [
     'Spent $14.50 on lunch at Chipotle today',
     'Paid $82 for groceries at Trader Joe’s',
+    'Bought $1,200 Sony Mirrorless Camera on credit card',
     'Received $3,200 monthly salary',
-    'Paid $45 for Uber ride to airport',
+    'Paid $65 for car oil change',
   ];
 
   const handleParse = async (inputPrompt?: string) => {
@@ -101,7 +106,40 @@ export const AiTransactionInput: React.FC<AiTransactionInputProps> = ({
 
       if (insertError) throw insertError;
 
-      // 2. Update account balance
+      // 2. ERP Cross-Module Bridge: Auto-register Personal Asset
+      if (alsoCreateAsset && editedType === 'expense' && editedAmount > 0) {
+        try {
+          await supabase.from('personal_assets').insert({
+            user_id: userId,
+            name: editedDescription,
+            purchase_price: editedAmount,
+            current_value: editedAmount,
+            purchase_date: editedDate,
+            category: 'Electronics',
+            status: 'active',
+          });
+        } catch (assetErr) {
+          console.warn('Auto-asset registration error:', assetErr);
+        }
+      }
+
+      // 3. ERP Cross-Module Bridge: Auto-create Task
+      if (alsoCreateTask) {
+        try {
+          await supabase.from('tasks').insert({
+            user_id: userId,
+            title: `Follow-up: ${editedDescription}`,
+            amount: editedAmount,
+            status: 'todo',
+            priority: 'medium',
+            is_financial: false,
+          });
+        } catch (taskErr) {
+          console.warn('Auto-task creation error:', taskErr);
+        }
+      }
+
+      // 4. Update account balance
       const account = accounts.find((a) => a.id === selectedAccountId);
       if (account) {
         const delta = editedType === 'income' ? editedAmount : -editedAmount;
@@ -120,6 +158,8 @@ export const AiTransactionInput: React.FC<AiTransactionInputProps> = ({
       // Reset state and notify parent
       setParsedItem(null);
       setPrompt('');
+      setAlsoCreateAsset(false);
+      setAlsoCreateTask(false);
       onTransactionSaved();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to save transaction';
@@ -306,6 +346,31 @@ export const AiTransactionInput: React.FC<AiTransactionInputProps> = ({
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
               />
             </div>
+          </div>
+
+          {/* ERP Cross-Module Bridges */}
+          <div className="mt-4 pt-3 border-t border-slate-850 flex flex-col sm:flex-row gap-4 text-xs text-slate-300">
+            {editedType === 'expense' && (
+              <label className="flex items-center gap-2 cursor-pointer hover:text-white transition">
+                <input
+                  type="checkbox"
+                  checked={alsoCreateAsset}
+                  onChange={(e) => setAlsoCreateAsset(e.target.checked)}
+                  className="rounded border-slate-700 text-emerald-500 focus:ring-emerald-500/20"
+                />
+                <span>Also register as <strong>Personal Asset</strong> (Vault &amp; Net Worth)</span>
+              </label>
+            )}
+
+            <label className="flex items-center gap-2 cursor-pointer hover:text-white transition">
+              <input
+                type="checkbox"
+                checked={alsoCreateTask}
+                onChange={(e) => setAlsoCreateTask(e.target.checked)}
+                className="rounded border-slate-700 text-emerald-500 focus:ring-emerald-500/20"
+              />
+              <span>Also add <strong>Follow-up Task</strong> in Operations</span>
+            </label>
           </div>
 
           <div className="mt-5 flex items-center justify-end gap-3 pt-3 border-t border-slate-800">

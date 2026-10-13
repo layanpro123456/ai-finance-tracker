@@ -1,27 +1,54 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from './supabaseClient';
-import type { Account, Category, Transaction, Budget } from './types';
+import type {
+  Account,
+  Category,
+  Transaction,
+  Budget,
+  Task,
+  PersonalAsset,
+  Subscription,
+  ContactsLedger,
+} from './types';
 import { AuthModal } from './components/AuthModal';
-import { Navbar } from './components/Navbar';
+import { Navbar, type ErpTab } from './components/Navbar';
 import { MetricCards } from './components/MetricCards';
 import { AiTransactionInput } from './components/AiTransactionInput';
 import { AccountManager } from './components/AccountManager';
 import { TransactionList } from './components/TransactionList';
 import { BudgetManager } from './components/BudgetManager';
-import { Loader2, ArrowRight } from 'lucide-react';
+import { TaskManager } from './components/TaskManager';
+import { AssetManager } from './components/AssetManager';
+import { SubscriptionManager } from './components/SubscriptionManager';
+import { ContactsLedgerManager } from './components/ContactsLedgerManager';
+import {
+  Loader2,
+  ArrowRight,
+  CheckSquare,
+  CreditCard,
+  AlertTriangle,
+} from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 
 export function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authChecking, setAuthChecking] = useState(true);
   const [dataLoading, setDataLoading] = useState(false);
+  const [migrationNotice, setMigrationNotice] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'accounts' | 'budgets'>('dashboard');
+  const [activeTab, setActiveTab] = useState<ErpTab>('dashboard');
 
+  // Core Financial State
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
+
+  // Personal ERP Expansion State
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [assets, setAssets] = useState<PersonalAsset[]>([]);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [contactsLedger, setContactsLedger] = useState<ContactsLedger[]>([]);
 
   // 1. Check auth status on load
   useEffect(() => {
@@ -40,7 +67,7 @@ export function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // 2. Fetch all app data
+  // 2. Fetch all app and ERP data
   const fetchData = useCallback(async () => {
     if (!user) return;
     setDataLoading(true);
@@ -48,13 +75,12 @@ export function App() {
     try {
       const currentMonth = new Date().toISOString().slice(0, 7);
 
-      // Fetch accounts
+      // A. Fetch accounts
       const { data: accData } = await supabase
         .from('accounts')
         .select('*')
         .order('created_at', { ascending: true });
 
-      // If user has no accounts yet, automatically seed a default primary account
       if (accData && accData.length === 0) {
         const { data: newAcc } = await supabase
           .from('accounts')
@@ -72,14 +98,14 @@ export function App() {
         setAccounts(accData || []);
       }
 
-      // Fetch categories
+      // B. Fetch categories
       const { data: catData } = await supabase
         .from('categories')
         .select('*')
         .order('name', { ascending: true });
       setCategories(catData || []);
 
-      // Fetch transactions
+      // C. Fetch transactions
       const { data: txData } = await supabase
         .from('transactions')
         .select('*, accounts(name, currency), categories(name)')
@@ -87,14 +113,64 @@ export function App() {
         .order('created_at', { ascending: false });
       setTransactions(txData || []);
 
-      // Fetch budgets
+      // D. Fetch budgets
       const { data: budgetData } = await supabase
         .from('budgets')
         .select('*, categories(name)')
         .eq('month_year', currentMonth);
       setBudgets(budgetData || []);
+
+      // E. Personal ERP: Fetch Tasks (graceful fallback if table not yet migrated)
+      try {
+        const { data: taskData, error: taskErr } = await supabase
+          .from('tasks')
+          .select('*, categories(name), accounts(name, currency)')
+          .order('due_date', { ascending: true, nullsFirst: false })
+          .order('created_at', { ascending: false });
+
+        if (taskErr && taskErr.code === '42P01') {
+          setMigrationNotice('Please run supabase/migrations/20261013_personal_erp_expansion.sql in your Supabase SQL editor.');
+        } else {
+          setTasks(taskData || []);
+        }
+      } catch (e) {
+        console.warn('Tasks table unavailable:', e);
+      }
+
+      // F. Personal ERP: Fetch Assets
+      try {
+        const { data: assetData } = await supabase
+          .from('personal_assets')
+          .select('*')
+          .order('current_value', { ascending: false });
+        setAssets(assetData || []);
+      } catch (e) {
+        console.warn('Assets table unavailable:', e);
+      }
+
+      // G. Personal ERP: Fetch Subscriptions
+      try {
+        const { data: subData } = await supabase
+          .from('subscriptions')
+          .select('*, categories(name), accounts(name, currency)')
+          .order('next_billing_date', { ascending: true });
+        setSubscriptions(subData || []);
+      } catch (e) {
+        console.warn('Subscriptions table unavailable:', e);
+      }
+
+      // H. Personal ERP: Fetch Contacts Ledger
+      try {
+        const { data: ledgerData } = await supabase
+          .from('contacts_ledger')
+          .select('*')
+          .order('created_at', { ascending: false });
+        setContactsLedger(ledgerData || []);
+      } catch (e) {
+        console.warn('Contacts ledger table unavailable:', e);
+      }
     } catch (err) {
-      console.error('Error fetching dashboard data:', err);
+      console.error('Error fetching ERP dashboard data:', err);
     } finally {
       setDataLoading(false);
     }
@@ -125,9 +201,14 @@ export function App() {
     return <AuthModal onSuccess={() => fetchData()} />;
   }
 
+  // Active Pending Tasks Count
+  const pendingTasks = tasks.filter((t) => t.status !== 'completed');
+  const pendingBills = pendingTasks.filter((t) => t.is_financial && t.financial_type === 'payable');
+  const activeSubs = subscriptions.filter((s) => s.is_active);
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 pb-16">
-      {/* Top Navbar */}
+      {/* Top ERP Navbar */}
       <Navbar
         userEmail={user.email || 'User'}
         activeTab={activeTab}
@@ -139,15 +220,40 @@ export function App() {
         {dataLoading && (
           <div className="flex items-center justify-end text-xs text-slate-500 mb-2 gap-1.5">
             <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
-            <span>Syncing database...</span>
+            <span>Syncing ERP ledger...</span>
           </div>
         )}
 
-        {/* Dashboard Tab */}
+        {migrationNotice && (
+          <div className="mb-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              <span>
+                <strong>ERP Tables Ready:</strong> Execute <code className="bg-slate-900 px-2 py-0.5 rounded text-amber-200">supabase/migrations/20261013_personal_erp_expansion.sql</code> in your Supabase SQL Editor to enable persistent cloud storage for Tasks, Assets &amp; Subscriptions.
+              </span>
+            </div>
+            <button
+              onClick={() => setMigrationNotice(null)}
+              className="text-amber-400 hover:text-white px-2 py-1"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* EXECUTIVE DASHBOARD (OVERVIEW) */}
+        {/* ========================================================================= */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
-            {/* Top Financial Metrics */}
-            <MetricCards accounts={accounts} transactions={transactions} />
+            {/* Top Comprehensive Metrics */}
+            <MetricCards
+              accounts={accounts}
+              transactions={transactions}
+              assets={assets}
+              contactsLedger={contactsLedger}
+              tasks={tasks}
+            />
 
             {/* AI Natural Language Logger */}
             <AiTransactionInput
@@ -157,34 +263,105 @@ export function App() {
               onTransactionSaved={fetchData}
             />
 
-            {/* 2-Column Overview */}
+            {/* Cross-Module Operations Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Recent Transactions (2 cols on desktop) */}
-              <div className="lg:col-span-2">
-                <div className="flex items-center justify-between mb-3 px-1">
-                  <h3 className="text-sm font-semibold text-slate-300">Recent Activity</h3>
-                  <button
-                    onClick={() => setActiveTab('transactions')}
-                    className="text-xs text-emerald-400 hover:text-emerald-300 font-medium flex items-center gap-1 cursor-pointer"
-                  >
-                    <span>View all transactions</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </button>
-                </div>
-                <TransactionList
-                  userId={user.id}
-                  transactions={transactions.slice(0, 8)}
-                  accounts={accounts}
-                  categories={categories}
-                  onTransactionsUpdated={fetchData}
-                />
-              </div>
+              {/* Left 2 Columns: Recent Transactions & Pending ERP Operations */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* 1. Daily Agenda & Pending Bills */}
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl">
+                        <CheckSquare className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-white">Daily Tasks &amp; Bill Reminders</h3>
+                        <p className="text-xs text-slate-400">
+                          {pendingTasks.length} active tasks • {pendingBills.length} upcoming bills
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setActiveTab('tasks')}
+                      className="text-xs text-emerald-400 hover:text-emerald-300 font-medium flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>Open Operations</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
 
-              {/* Side Column: Accounts & Budgets */}
-              <div className="space-y-6">
+                  {pendingTasks.length === 0 ? (
+                    <p className="text-xs text-slate-500 py-3 text-center">
+                      No pending tasks today. You are all caught up!
+                    </p>
+                  ) : (
+                    <div className="divide-y divide-slate-850">
+                      {pendingTasks.slice(0, 4).map((task) => (
+                        <div
+                          key={task.id}
+                          className="py-2.5 flex items-center justify-between text-xs"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                            <span className="font-medium text-slate-200">{task.title}</span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {task.is_financial && (
+                              <span
+                                className={`font-semibold px-2 py-0.5 rounded ${
+                                  task.financial_type === 'receivable'
+                                    ? 'bg-emerald-500/10 text-emerald-400'
+                                    : 'bg-rose-500/10 text-rose-400'
+                                }`}
+                              >
+                                {task.financial_type === 'receivable' ? '+' : '-'}$
+                                {Number(task.amount).toFixed(2)}
+                              </span>
+                            )}
+                            {task.due_date && (
+                              <span className="text-slate-500">
+                                {new Date(task.due_date).toLocaleDateString(undefined, {
+                                  month: 'short',
+                                  day: 'numeric',
+                                })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Recent Transactions */}
                 <div>
                   <div className="flex items-center justify-between mb-3 px-1">
-                    <h3 className="text-sm font-semibold text-slate-300">Your Accounts</h3>
+                    <h3 className="text-sm font-semibold text-slate-300">Recent Financial Activity</h3>
+                    <button
+                      onClick={() => setActiveTab('transactions')}
+                      className="text-xs text-emerald-400 hover:text-emerald-300 font-medium flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>View full ledger</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                  <TransactionList
+                    userId={user.id}
+                    transactions={transactions.slice(0, 6)}
+                    accounts={accounts}
+                    categories={categories}
+                    onTransactionsUpdated={fetchData}
+                  />
+                </div>
+              </div>
+
+              {/* Right Column: Accounts, Subscriptions, and Quick Widgets */}
+              <div className="space-y-6">
+                {/* Accounts Manager */}
+                <div>
+                  <div className="flex items-center justify-between mb-3 px-1">
+                    <h3 className="text-sm font-semibold text-slate-300">Bank &amp; Cash Accounts</h3>
                     <button
                       onClick={() => setActiveTab('accounts')}
                       className="text-xs text-emerald-400 hover:text-emerald-300 font-medium flex items-center gap-1 cursor-pointer"
@@ -200,6 +377,50 @@ export function App() {
                   />
                 </div>
 
+                {/* Subscriptions Glance */}
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-rose-500/10 text-rose-400 rounded-xl">
+                        <CreditCard className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-white">Active Subscriptions</h3>
+                        <p className="text-xs text-slate-400">{activeSubs.length} ongoing services</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setActiveTab('subscriptions')}
+                      className="text-xs text-emerald-400 hover:text-emerald-300 font-medium flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>Details</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
+
+                  {activeSubs.length === 0 ? (
+                    <p className="text-xs text-slate-500 py-2">No recurring subscriptions added yet.</p>
+                  ) : (
+                    <div className="space-y-2 mt-2">
+                      {activeSubs.slice(0, 3).map((sub) => (
+                        <div
+                          key={sub.id}
+                          className="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-950 border border-slate-850"
+                        >
+                          <span className="font-medium text-slate-200">{sub.name}</span>
+                          <span className="font-bold text-white">
+                            ${Number(sub.cost).toFixed(2)}
+                            <span className="text-[10px] text-slate-500 font-normal">
+                              /{sub.billing_cycle === 'monthly' ? 'mo' : 'yr'}
+                            </span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Budgets */}
                 <div>
                   <div className="flex items-center justify-between mb-3 px-1">
                     <h3 className="text-sm font-semibold text-slate-300">Monthly Budgets</h3>
@@ -224,7 +445,22 @@ export function App() {
           </div>
         )}
 
-        {/* Transactions Tab */}
+        {/* ========================================================================= */}
+        {/* DAILY TASKS & OPERATIONS TAB */}
+        {/* ========================================================================= */}
+        {activeTab === 'tasks' && (
+          <TaskManager
+            userId={user.id}
+            tasks={tasks}
+            accounts={accounts}
+            categories={categories}
+            onTasksUpdated={fetchData}
+          />
+        )}
+
+        {/* ========================================================================= */}
+        {/* FINANCIAL TRANSACTIONS LEDGER TAB */}
+        {/* ========================================================================= */}
         {activeTab === 'transactions' && (
           <div className="space-y-6">
             <TransactionList
@@ -237,7 +473,9 @@ export function App() {
           </div>
         )}
 
-        {/* Accounts Tab */}
+        {/* ========================================================================= */}
+        {/* ACCOUNTS TAB */}
+        {/* ========================================================================= */}
         {activeTab === 'accounts' && (
           <div className="space-y-6">
             <AccountManager
@@ -248,7 +486,9 @@ export function App() {
           </div>
         )}
 
-        {/* Budgets Tab */}
+        {/* ========================================================================= */}
+        {/* BUDGETS TAB */}
+        {/* ========================================================================= */}
         {activeTab === 'budgets' && (
           <div className="space-y-6">
             <BudgetManager
@@ -259,6 +499,42 @@ export function App() {
               onBudgetsUpdated={fetchData}
             />
           </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* PERSONAL ASSETS & INVENTORY TAB */}
+        {/* ========================================================================= */}
+        {activeTab === 'assets' && (
+          <AssetManager
+            userId={user.id}
+            assets={assets}
+            onAssetsUpdated={fetchData}
+          />
+        )}
+
+        {/* ========================================================================= */}
+        {/* SUBSCRIPTIONS TAB */}
+        {/* ========================================================================= */}
+        {activeTab === 'subscriptions' && (
+          <SubscriptionManager
+            userId={user.id}
+            subscriptions={subscriptions}
+            accounts={accounts}
+            categories={categories}
+            onSubscriptionsUpdated={fetchData}
+          />
+        )}
+
+        {/* ========================================================================= */}
+        {/* SOCIAL LEDGER (P2P DEBTS) TAB */}
+        {/* ========================================================================= */}
+        {activeTab === 'contacts' && (
+          <ContactsLedgerManager
+            userId={user.id}
+            contactsLedger={contactsLedger}
+            accounts={accounts}
+            onLedgerUpdated={fetchData}
+          />
         )}
       </main>
     </div>
