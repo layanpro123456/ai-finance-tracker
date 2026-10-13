@@ -21,6 +21,10 @@ import {
   TrendingUp,
   Flame,
   AlertCircle,
+  Navigation,
+  Car,
+  MapPin,
+  Gauge,
 } from 'lucide-react';
 
 interface HelpGuideProps {
@@ -31,6 +35,7 @@ type GuideSection =
   | 'quickstart'
   | 'finance'
   | 'tasks'
+  | 'timeline'
   | 'assets'
   | 'subscriptions'
   | 'contacts'
@@ -58,6 +63,13 @@ const SECTIONS: { id: GuideSection; label: string; icon: React.ReactNode; desc: 
     icon: <CheckSquare className="w-4 h-4 text-teal-400" />,
     desc: 'Operations, bills, streaks',
     keywords: 'tasks bills payable receivable due dates operations habits no-spend streak checkoff',
+  },
+  {
+    id: 'timeline',
+    label: 'Location & Mobility',
+    icon: <Navigation className="w-4 h-4 text-emerald-400" />,
+    desc: 'GPS speed, commute & geofences',
+    keywords: 'location timeline mobility transport speed traffic commute fuel distance gps geofence reminders places',
   },
   {
     id: 'assets',
@@ -432,6 +444,85 @@ export const HelpGuide: React.FC<HelpGuideProps> = ({ onNavigateTab }) => {
                 className="text-xs px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold transition flex items-center gap-1.5 cursor-pointer"
               >
                 <span>Open Daily Tasks &amp; Bills</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* LOCATION & MOBILITY TIMELINE */}
+          {/* ========================================================================= */}
+          {activeSection === 'timeline' && (
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl">
+              <div>
+                <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                  <Navigation className="w-5 h-5 text-emerald-400" />
+                  <span>Location Timeline &amp; Mobility Operations</span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  Speed-based transport detection, commute expenditure tracking, and location-triggered payment alerts.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Gauge className="w-4 h-4 text-emerald-400" />
+                    <h3 className="text-sm font-bold text-white">Speed-Based Transport &amp; Traffic Intelligence</h3>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Apex LifeOS automatically evaluates your movement velocity:
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 text-xs">
+                    <div className="p-3 bg-slate-900 rounded-xl border border-slate-850">
+                      <span className="font-bold text-emerald-400 block mb-0.5">🚶 Walking</span>
+                      <span className="text-[11px] text-slate-400">1.5 – 8 km/h. Zero monetary fuel cost; logs active wellness distance.</span>
+                    </div>
+                    <div className="p-3 bg-slate-900 rounded-xl border border-slate-850">
+                      <span className="font-bold text-cyan-400 block mb-0.5">🚲 Cycling</span>
+                      <span className="text-[11px] text-slate-400">8 – 25 km/h. Micro-mobility &amp; eco-friendly active transit.</span>
+                    </div>
+                    <div className="p-3 bg-slate-900 rounded-xl border border-slate-850">
+                      <span className="font-bold text-blue-400 block mb-0.5">🚗 Motorized Vehicle</span>
+                      <span className="text-[11px] text-slate-400">&ge; 25 km/h. Calculates distance &amp; estimates fuel or transit fare.</span>
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 mt-2">
+                    <strong>Traffic Jam Intelligence:</strong> In stop-and-go city traffic, vehicles often crawl at 0–14 km/h or stop at red lights. The engine recognizes continuous motorized trips and locks into <em>Vehicle (Traffic Congestion)</em> mode rather than misclassifying your drive as walking.
+                  </div>
+                </div>
+
+                <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-teal-400" />
+                    <h3 className="text-sm font-bold text-white">Geofenced Payment Reminders</h3>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Register saved places (Costco, Supermarket, Landlord, Office) with custom radii (100m – 1500m). When you arrive inside the perimeter, a global notification banner appears:
+                  </p>
+                  <ul className="text-xs text-slate-400 space-y-1 list-disc list-inside">
+                    <li><strong className="text-white">Budget Category Alert:</strong> Arriving at a grocery store reminds you of your remaining monthly allowance!</li>
+                    <li><strong className="text-white">Task Completion Prompt:</strong> Arriving at your landlord&apos;s office prompts you to settle your pending rent payment task with 1 click.</li>
+                    <li><strong className="text-white">Social IOU Settle:</strong> Meeting a colleague reminds you to settle your dinner split.</li>
+                  </ul>
+                </div>
+
+                <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Car className="w-4 h-4 text-sky-400" />
+                    <h3 className="text-sm font-bold text-white">1-Click Commute Ledger Entry</h3>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    At the end of any commute leg or in your daily mobility summary, click <strong>&ldquo;Log Commute Expense&rdquo;</strong> to record the estimated fuel or transit fare directly into your ledger and adjust your checking account balance automatically.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => onNavigateTab('timeline')}
+                className="text-xs px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>Open Location Timeline &amp; Mobility</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

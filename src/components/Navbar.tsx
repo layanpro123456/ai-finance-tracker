@@ -17,6 +17,7 @@ import {
   Settings,
   HelpCircle,
   Shield,
+  Navigation,
 } from 'lucide-react';
 
 export type ErpTab =
@@ -25,6 +26,7 @@ export type ErpTab =
   | 'accounts'
   | 'budgets'
   | 'tasks'
+  | 'timeline'
   | 'assets'
   | 'subscriptions'
   | 'contacts'
@@ -38,6 +40,7 @@ interface NavbarProps {
   onSignOut: () => void;
   isAdmin?: boolean;
   onOpenAdminAuth?: () => void;
+  activeAlertCount?: number;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -47,13 +50,20 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSignOut,
   isAdmin = false,
   onOpenAdminAuth,
+  activeAlertCount = 0,
 }) => {
   const { preferences, toggleTheme } = usePreferences();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  const baseNavItems: { id: ErpTab; label: string; icon: React.ReactNode }[] = [
+  const baseNavItems: { id: ErpTab; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: 'dashboard', label: 'Overview', icon: <LayoutDashboard className="w-4 h-4" /> },
     { id: 'tasks', label: 'Daily Tasks', icon: <CheckSquare className="w-4 h-4" /> },
+    {
+      id: 'timeline',
+      label: 'Timeline & Mobility',
+      icon: <Navigation className="w-4 h-4" />,
+      badge: activeAlertCount > 0 ? activeAlertCount : undefined,
+    },
     { id: 'transactions', label: 'Ledger', icon: <Receipt className="w-4 h-4" /> },
     { id: 'accounts', label: 'Accounts', icon: <Wallet className="w-4 h-4" /> },
     { id: 'budgets', label: 'Budgets', icon: <PieChart className="w-4 h-4" /> },
@@ -63,7 +73,9 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'help', label: 'Help & Guide', icon: <HelpCircle className="w-4 h-4" /> },
   ];
 
-  const navItems = isAdmin
+  type NavItem = { id: ErpTab; label: string; icon: React.ReactNode; badge?: number };
+
+  const navItems: NavItem[] = isAdmin
     ? [...baseNavItems, { id: 'admin' as ErpTab, label: 'Admin', icon: <Shield className="w-4 h-4 text-purple-400" /> }]
     : baseNavItems;
 
@@ -97,7 +109,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer relative ${
                     activeTab === item.id
                       ? 'bg-slate-700 text-white shadow-sm'
                       : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
@@ -105,6 +117,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                 >
                   {item.icon}
                   <span>{item.label}</span>
+                  {item.badge && (
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  )}
                 </button>
               ))}
             </nav>

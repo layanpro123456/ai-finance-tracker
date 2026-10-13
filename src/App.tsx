@@ -22,6 +22,14 @@ import { AssetManager } from './components/AssetManager';
 import { SubscriptionManager } from './components/SubscriptionManager';
 import { ContactsLedgerManager } from './components/ContactsLedgerManager';
 import { HelpGuide } from './components/HelpGuide';
+import { LocationTimelineManager } from './components/LocationTimelineManager';
+import { ProximityAlertBanner } from './components/ProximityAlertBanner';
+import {
+  evaluateProximityAlerts,
+  loadSavedPlaces,
+  DEFAULT_ANCHOR_COORDS,
+} from './services/locationMobilityService';
+import type { ProximityAlert } from './types';
 import { AdminPortal } from './components/AdminPortal';
 import { AdminAuthModal } from './components/AdminAuthModal';
 import { isUserAdminSession, logPlatformEvent } from './services/adminTelemetry';
@@ -55,6 +63,15 @@ export function App() {
   const [assets, setAssets] = useState<PersonalAsset[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [contactsLedger, setContactsLedger] = useState<ContactsLedger[]>([]);
+
+  // Location Timeline & Proximity Alerts State
+  const [dismissedAlertPlaces, setDismissedAlertPlaces] = useState<Set<string>>(new Set());
+  const [activeAlerts, setActiveAlerts] = useState<ProximityAlert[]>([]);
+
+  const handleDismissAlert = (placeId: string) => {
+    setDismissedAlertPlaces((prev) => new Set(prev).add(placeId));
+    setActiveAlerts((prev) => prev.filter((a) => a.placeId !== placeId));
+  };
 
   // 1. Check auth status on load
   useEffect(() => {
@@ -140,6 +157,7 @@ export function App() {
       setBudgets(budgetData || []);
 
       // E. Personal ERP: Fetch Tasks (graceful fallback if table not yet migrated)
+      let fetchedTasks: Task[] = [];
       try {
         const { data: taskData, error: taskErr } = await supabase
           .from('tasks')
@@ -150,7 +168,8 @@ export function App() {
         if (taskErr) {
           console.warn('Tasks table unavailable:', taskErr);
         } else {
-          setTasks(taskData || []);
+          fetchedTasks = (taskData || []) as Task[];
+          setTasks(fetchedTasks);
         }
       } catch (e) {
         console.warn('Tasks table unavailable:', e);
@@ -179,14 +198,32 @@ export function App() {
       }
 
       // H. Personal ERP: Fetch Contacts Ledger
+      let fetchedLedger: ContactsLedger[] = [];
       try {
         const { data: ledgerData } = await supabase
           .from('contacts_ledger')
           .select('*')
           .order('created_at', { ascending: false });
-        setContactsLedger(ledgerData || []);
+        fetchedLedger = (ledgerData || []) as ContactsLedger[];
+        setContactsLedger(fetchedLedger);
       } catch (e) {
         console.warn('Contacts ledger table unavailable:', e);
+      }
+
+      // I. Personal ERP: Fetch Saved Places & Check Proximity Alerts
+      try {
+        const loadedPlaces = await loadSavedPlaces(user.id);
+        const alerts = evaluateProximityAlerts(
+          DEFAULT_ANCHOR_COORDS,
+          loadedPlaces,
+          dismissedAlertPlaces,
+          budgetData || [],
+          fetchedTasks || [],
+          fetchedLedger || []
+        );
+        setActiveAlerts(alerts);
+      } catch (e) {
+        console.warn('Saved places unavailable:', e);
       }
     } catch (err) {
       console.error('Error fetching ERP dashboard data:', err);
@@ -235,6 +272,14 @@ export function App() {
         onSignOut={handleSignOut}
         isAdmin={isAdmin}
         onOpenAdminAuth={() => setIsAdminAuthModalOpen(true)}
+        activeAlertCount={activeAlerts.length}
+      />
+
+      {/* Global Proximity Payment Alert Banner */}
+      <ProximityAlertBanner
+        alerts={activeAlerts}
+        onDismissAlert={handleDismissAlert}
+        onNavigateToTab={setActiveTab}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
@@ -537,6 +582,22 @@ export function App() {
             contactsLedger={contactsLedger}
             accounts={accounts}
             onLedgerUpdated={fetchData}
+          />
+        )}
+
+        {/* ========================================================================= */}
+        {/* LOCATION TIMELINE & MOBILITY TAB */}
+        {/* ========================================================================= */}
+        {activeTab === 'timeline' && (
+          <LocationTimelineManager
+            userId={user.id}
+            accounts={accounts}
+            categories={categories}
+            budgets={budgets}
+            tasks={tasks}
+            contactsLedger={contactsLedger}
+            onTransactionsUpdated={fetchData}
+            onTasksUpdated={fetchData}
           />
         )}
 

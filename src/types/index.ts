@@ -165,3 +165,94 @@ export interface PlatformActivityLog {
   platform: string;
   status: 'success' | 'warning' | 'info';
 }
+
+// ============================================================================
+// Location Timeline, Speed-based Mobility & Payment Reminders
+// ============================================================================
+
+export type TransportMode =
+  | 'stationary'
+  | 'walking'
+  | 'cycling'
+  | 'vehicle'
+  | 'high_speed_transit';
+
+export type ReminderType = 'budget' | 'task' | 'contact' | 'custom';
+
+export interface SavedPlace {
+  id: string;
+  user_id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  radius_meters: number;
+  category_id?: string | null;
+  linked_task_id?: string | null;
+  linked_contact_id?: string | null;
+  reminder_type: ReminderType;
+  reminder_message?: string | null;
+  icon_type?: string;
+  created_at?: string;
+  // Hydrated join fields (optional)
+  categories?: { name: string };
+  tasks?: { title: string; amount: number };
+  contacts_ledger?: { contact_name: string; amount: number; type: string };
+}
+
+export type TimelineEventType = 'trip' | 'stay' | 'payment_alert';
+
+export interface MobilityTimelineEvent {
+  id: string;
+  user_id: string;
+  event_type: TimelineEventType;
+  title: string;
+  start_time: string;
+  end_time?: string | null;
+  duration_seconds?: number;
+  mode?: TransportMode;
+  in_traffic?: boolean;
+  distance_km?: number;
+  avg_speed_kmh?: number;
+  max_speed_kmh?: number;
+  estimated_cost?: number;
+  is_cost_logged?: boolean;
+  place_name?: string;
+  notes?: string;
+  latitude?: number;
+  longitude?: number;
+  created_at?: string;
+}
+
+export interface DailyMobilityStats {
+  id?: string;
+  user_id: string;
+  stat_date: string; // YYYY-MM-DD
+  total_distance_km: number;
+  transit_time_minutes: number;
+  walking_km: number;
+  cycling_km: number;
+  vehicle_km: number;
+  estimated_transit_cost: number;
+  logged_transit_cost: number;
+  top_speed_kmh: number;
+  active_stops_count: number;
+  created_at?: string;
+}
+
+export interface ProximityAlert {
+  id: string;
+  placeId: string;
+  placeName: string;
+  distanceMeters: number;
+  reminderType: ReminderType;
+  reminderMessage: string;
+  suggestedActionLabel?: string;
+  timestamp: string;
+  linkedTaskId?: string | null;
+  linkedCategoryId?: string | null;
+  linkedContactId?: string | null;
+  budgetRemaining?: number | null;
+  taskAmount?: number | null;
+  contactAmount?: number | null;
+}
+
