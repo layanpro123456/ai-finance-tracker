@@ -32,8 +32,10 @@ Most finance apps operate in isolation—they only track historical debits and c
 | **Social Ledger** | P2P debt tracking (*"They Owe Me"* vs *"I Owe Them"*) | 1-Click settlement modal |
 | **Admin Portal** | Privacy-preserving telemetry, audit logs, and user analytics | Masked IDs, 0 private financial leaks |
 | **Help & Guide** | Comprehensive user-facing tutorial with step-by-step interactive instructions | User-focused, no raw database jargon |
+| **Device Sentinel** | Single active device login enforcement & device-bound location telemetry isolation | Hardware UUID, session takeover guard |
 
 ---
+
 
 ## 🏗️ Architecture & Technology Stack
 

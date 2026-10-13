@@ -26,6 +26,7 @@ import {
   SIMULATION_SCENARIOS,
   DEFAULT_ANCHOR_COORDS,
 } from '../services/locationMobilityService';
+import { getCurrentDeviceInfo } from '../services/deviceSessionService';
 import { supabase } from '../supabaseClient';
 import {
   Navigation,
@@ -51,6 +52,8 @@ import {
   ChevronRight,
   X,
   Loader2,
+  Smartphone,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface LocationTimelineManagerProps {
@@ -58,6 +61,7 @@ interface LocationTimelineManagerProps {
   accounts: Account[];
   categories: Category[];
   budgets: Budget[];
+
   tasks: Task[];
   contactsLedger: ContactsLedger[];
   onTransactionsUpdated: () => void;
@@ -118,6 +122,9 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
   const [commuteAccountId, setCommuteAccountId] = useState<string>('');
   const [isLoggingExpense, setIsLoggingExpense] = useState(false);
 
+  // Hardware Device Info (for Unique Partitioning)
+  const deviceInfo = useMemo(() => getCurrentDeviceInfo(), []);
+
   // Filter for timeline
   const [timelineFilter, setTimelineFilter] = useState<'all' | 'trip' | 'stay' | 'alert'>('all');
 
@@ -125,15 +132,15 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
   const classifierRef = useRef(new MobilityClassifier());
   const simTimerRef = useRef<number | null>(null);
 
-  // 1. Initial Load of Places & Events
+  // 1. Initial Load of Places & Events (Scoped to this Physical Device)
   const fetchInitialData = useCallback(async () => {
     setLoading(true);
     try {
       const today = new Date().toISOString().slice(0, 10);
       const [loadedPlaces, loadedEvents, loadedStats] = await Promise.all([
-        loadSavedPlaces(userId),
-        loadTimelineEvents(userId),
-        loadDailyMobilityStats(userId, today),
+        loadSavedPlaces(userId, deviceInfo.deviceId),
+        loadTimelineEvents(userId, deviceInfo.deviceId),
+        loadDailyMobilityStats(userId, today, deviceInfo.deviceId),
       ]);
       setPlaces(loadedPlaces);
       setEvents(loadedEvents);
@@ -143,11 +150,12 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, deviceInfo.deviceId]);
 
   useEffect(() => {
     fetchInitialData();
   }, [fetchInitialData]);
+
 
   // Set default account when accounts change
   useEffect(() => {
@@ -278,17 +286,21 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
     if (!newPlaceName.trim()) return;
 
     try {
-      const created = await persistSavedPlace(userId, {
-        name: newPlaceName.trim(),
-        latitude: newPlaceLat,
-        longitude: newPlaceLng,
-        radius_meters: newPlaceRadius,
-        reminder_type: newPlaceReminderType,
-        reminder_message: newPlaceMessage.trim(),
-        category_id: newPlaceCategoryId || null,
-        linked_task_id: newPlaceTaskId || null,
-        linked_contact_id: newPlaceContactId || null,
-      });
+      const created = await persistSavedPlace(
+        userId,
+        {
+          name: newPlaceName.trim(),
+          latitude: newPlaceLat,
+          longitude: newPlaceLng,
+          radius_meters: newPlaceRadius,
+          reminder_type: newPlaceReminderType,
+          reminder_message: newPlaceMessage.trim(),
+          category_id: newPlaceCategoryId || null,
+          linked_task_id: newPlaceTaskId || null,
+          linked_contact_id: newPlaceContactId || null,
+        },
+        deviceInfo.deviceId
+      );
 
       setPlaces((prev) => [created, ...prev.filter((p) => p.id !== created.id)]);
       setShowAddPlaceModal(false);
@@ -302,7 +314,7 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
   // Delete Place
   const handleDeletePlace = async (placeId: string) => {
     try {
-      await removeSavedPlace(userId, placeId);
+      await removeSavedPlace(userId, placeId, deviceInfo.deviceId);
       setPlaces((prev) => prev.filter((p) => p.id !== placeId));
     } catch (err) {
       console.error('Failed to delete place:', err);
@@ -352,19 +364,26 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
         const updatedTrip: MobilityTimelineEvent = {
           ...loggingTrip,
           is_cost_logged: true,
+          device_id: deviceInfo.deviceId,
+          device_name: deviceInfo.deviceName,
         };
-        await persistTimelineEvent(userId, updatedTrip);
+        await persistTimelineEvent(userId, updatedTrip, deviceInfo.deviceId);
         setEvents((prev) => prev.map((ev) => (ev.id === updatedTrip.id ? updatedTrip : ev)));
 
         // Update daily mobility stats
-        await updateDailyMobilityStats(userId, { logged_transit_cost: amountToLog });
+        await updateDailyMobilityStats(
+          userId,
+          { logged_transit_cost: amountToLog },
+          deviceInfo.deviceId
+        );
         const today = new Date().toISOString().slice(0, 10);
-        const refreshedStats = await loadDailyMobilityStats(userId, today);
+        const refreshedStats = await loadDailyMobilityStats(userId, today, deviceInfo.deviceId);
         setDailyStats(refreshedStats);
 
         // Notify parent to refresh transactions & balances
         onTransactionsUpdated();
       }
+
 
       setLoggingTrip(null);
     } catch (err) {
@@ -449,17 +468,24 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
               <Navigation className="w-6 h-6" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl font-bold text-white tracking-tight">Location Timeline &amp; Mobility</h1>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                   LIVE TELEMETRY
                 </span>
+                <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-slate-800/90 text-slate-300 border border-slate-700 flex items-center gap-1.5 shadow-sm">
+                  <Smartphone className="w-3 h-3 text-emerald-400" />
+                  <span>{deviceInfo.deviceName}</span>
+                  <span className="text-slate-500">•</span>
+                  <span className="text-emerald-400">{deviceInfo.deviceId.slice(0, 10)}</span>
+                </span>
               </div>
-              <p className="text-xs text-slate-400">
-                Speed-based transport detection, commute expenditure, and geofence payment alerts
+              <p className="text-xs text-slate-400 mt-0.5">
+                Speed-based transport detection, commute expenditure, and hardware-bound geofence payment alerts
               </p>
             </div>
           </div>
+
 
           {/* Right Controls: Ingestion Mode & Tracking Toggle */}
           <div className="flex items-center gap-2 flex-wrap">
@@ -502,8 +528,32 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
           </div>
         </div>
 
+        {/* Device Lock & Location Uniqueness Alert */}
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 text-xs">
+          <div className="flex items-center gap-2.5">
+            <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
+            <div className="leading-snug">
+              <span className="text-white font-semibold">Device-Unique Telemetry: </span>
+              <span className="text-slate-400">
+                All coordinates, speed history, and travel ledgers are bound to this hardware device (<code className="text-emerald-400 font-mono">{deviceInfo.deviceName}</code>).
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-start sm:self-auto flex-shrink-0">
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>1 Device Active</span>
+            </span>
+          </div>
+        </div>
+
         {/* Real-Time Speedometer & Telemetry Ribbon */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
           {/* Gauge 1: Current Speed */}
           <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800/80 space-y-1">
             <div className="flex items-center justify-between text-xs text-slate-400">

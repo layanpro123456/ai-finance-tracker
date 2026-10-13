@@ -182,6 +182,7 @@ export type ReminderType = 'budget' | 'task' | 'contact' | 'custom';
 export interface SavedPlace {
   id: string;
   user_id: string;
+  device_id?: string;
   name: string;
   latitude: number;
   longitude: number;
@@ -204,6 +205,8 @@ export type TimelineEventType = 'trip' | 'stay' | 'payment_alert';
 export interface MobilityTimelineEvent {
   id: string;
   user_id: string;
+  device_id?: string;
+  device_name?: string;
   event_type: TimelineEventType;
   title: string;
   start_time: string;
@@ -226,6 +229,7 @@ export interface MobilityTimelineEvent {
 export interface DailyMobilityStats {
   id?: string;
   user_id: string;
+  device_id?: string;
   stat_date: string; // YYYY-MM-DD
   total_distance_km: number;
   transit_time_minutes: number;
@@ -255,4 +259,14 @@ export interface ProximityAlert {
   taskAmount?: number | null;
   contactAmount?: number | null;
 }
+
+export interface UserDeviceSession {
+  user_id: string;
+  active_device_id: string;
+  device_name: string;
+  platform?: string;
+  last_active_at: string;
+  created_at?: string;
+}
+
 

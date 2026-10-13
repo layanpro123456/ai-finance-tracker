@@ -33,6 +33,12 @@ import type { ProximityAlert } from './types';
 import { AdminPortal } from './components/AdminPortal';
 import { AdminAuthModal } from './components/AdminAuthModal';
 import { isUserAdminSession, logPlatformEvent } from './services/adminTelemetry';
+import {
+  checkDeviceSessionValidity,
+  terminateDeviceSession,
+  getDeviceId,
+} from './services/deviceSessionService';
+
 import { usePreferences } from './context/PreferencesContext';
 import {
   Loader2,
@@ -43,6 +49,7 @@ import {
 import type { User } from '@supabase/supabase-js';
 
 export function App() {
+
   const { formatCurrency, formatDate } = usePreferences();
   const [user, setUser] = useState<User | null>(null);
   const [authChecking, setAuthChecking] = useState(true);
@@ -73,35 +80,101 @@ export function App() {
     setActiveAlerts((prev) => prev.filter((a) => a.placeId !== placeId));
   };
 
-  // 1. Check auth status on load
+  // Single Active Device Session State
+  const [deviceKickoutNotice, setDeviceKickoutNotice] = useState<{ activeDeviceName: string } | null>(null);
+
+
+  // 1. Check auth status on load & enforce single-device session
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       const currentUser = session?.user ?? null;
-      setUser(currentUser);
       if (currentUser) {
+        // Enforce single-device ownership
+        const validity = await checkDeviceSessionValidity(currentUser.id);
+        if (!validity.isValid) {
+          setDeviceKickoutNotice({
+            activeDeviceName: validity.activeDeviceName || 'Another Device',
+          });
+          await supabase.auth.signOut();
+          setUser(null);
+          setAuthChecking(false);
+          return;
+        }
+
         if (currentUser.email?.toLowerCase().includes('admin') || isUserAdminSession()) {
           setIsAdmin(true);
         }
         logPlatformEvent('AUTH', 'User session active on Apex LifeOS', currentUser.id, currentUser.email || undefined);
       }
+      setUser(currentUser);
       setAuthChecking(false);
     });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       const currentUser = session?.user ?? null;
-      setUser(currentUser);
       if (currentUser) {
+        const validity = await checkDeviceSessionValidity(currentUser.id);
+        if (!validity.isValid) {
+          setDeviceKickoutNotice({
+            activeDeviceName: validity.activeDeviceName || 'Another Device',
+          });
+          await supabase.auth.signOut();
+          setUser(null);
+          setAuthChecking(false);
+          return;
+        }
+
         if (currentUser.email?.toLowerCase().includes('admin') || isUserAdminSession()) {
           setIsAdmin(true);
         }
       }
+      setUser(currentUser);
       setAuthChecking(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // 2. Periodic Single-Device Enforcement Heartbeat & Visibility Check
+  useEffect(() => {
+    if (!user) return;
+
+    const interval = setInterval(async () => {
+      const validity = await checkDeviceSessionValidity(user.id);
+      if (!validity.isValid) {
+        setDeviceKickoutNotice({
+          activeDeviceName: validity.activeDeviceName || 'Another Device',
+        });
+        await supabase.auth.signOut();
+        setUser(null);
+      }
+    }, 20000); // Check every 20 seconds
+
+    const handleFocus = async () => {
+      if (document.visibilityState === 'visible' && user) {
+        const validity = await checkDeviceSessionValidity(user.id);
+        if (!validity.isValid) {
+          setDeviceKickoutNotice({
+            activeDeviceName: validity.activeDeviceName || 'Another Device',
+          });
+          await supabase.auth.signOut();
+          setUser(null);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleFocus);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleFocus);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [user]);
+
 
   // 2. Fetch all app and ERP data
   const fetchData = useCallback(async () => {
@@ -210,9 +283,9 @@ export function App() {
         console.warn('Contacts ledger table unavailable:', e);
       }
 
-      // I. Personal ERP: Fetch Saved Places & Check Proximity Alerts
+      // I. Personal ERP: Fetch Saved Places & Check Proximity Alerts (Device-Bound)
       try {
-        const loadedPlaces = await loadSavedPlaces(user.id);
+        const loadedPlaces = await loadSavedPlaces(user.id, getDeviceId());
         const alerts = evaluateProximityAlerts(
           DEFAULT_ANCHOR_COORDS,
           loadedPlaces,
@@ -239,8 +312,12 @@ export function App() {
   }, [user, fetchData]);
 
   const handleSignOut = async () => {
+    if (user) {
+      await terminateDeviceSession(user.id);
+    }
     await supabase.auth.signOut();
     setUser(null);
+    setDeviceKickoutNotice(null);
   };
 
   // Auth loading screen
@@ -252,10 +329,19 @@ export function App() {
     );
   }
 
-  // If unauthenticated, show Auth Modal
+  // If unauthenticated, show Auth Modal with conflict notice if applicable
   if (!user) {
-    return <AuthModal onSuccess={() => fetchData()} />;
+    return (
+      <AuthModal
+        onSuccess={() => {
+          setDeviceKickoutNotice(null);
+          fetchData();
+        }}
+        initialConflictNotice={deviceKickoutNotice}
+      />
+    );
   }
+
 
   // Active Pending Tasks Count
   const pendingTasks = tasks.filter((t) => t.status !== 'completed');

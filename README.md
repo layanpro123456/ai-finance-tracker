@@ -86,9 +86,15 @@ Traditional personal finance apps only track what you spent *after* you've alrea
 * High-contrast OLED **Dark Mode** and clean **Light Mode**.
 * Adjustable primary currency, home country, and local timezone.
 
+### 10. 🔒 Hardware-Bound Location Uniqueness & Single-Device Lock *(NEW)*
+* **Hardware-Partitioned Location Data**: GPS fixes, velocity timeline events, and transit statistics are strictly partitioned by unique physical `device_id`, preventing GPS crosstalk or route contamination across devices.
+* **1 Active Device Enforcement**: Users cannot be actively logged in from multiple devices simultaneously. Attempting to log in on a second device displays an active session transfer prompt. Logging in on a new device terminates the previous device session.
+* **Continuous Heartbeat Sentinel**: Background heartbeat monitors session ownership; if a remote device claims the account, the local device is immediately logged out safely.
+
 ---
 
 ## 🛠️ Architecture & Tech Stack
+
 
 ```text
        [ User Browser / PWA Mobile View ]

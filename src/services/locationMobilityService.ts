@@ -9,19 +9,27 @@ import type {
   Task,
   ContactsLedger,
 } from '../types';
+import { getDeviceId, getDeviceName } from './deviceSessionService';
 
 // ============================================================================
-// Constants & Defaults
+// Constants & Device-Bound Storage Keys
 // ============================================================================
-const STORAGE_PLACES_KEY = 'apex_saved_places';
-const STORAGE_EVENTS_KEY = 'apex_timeline_events';
-const STORAGE_STATS_KEY = 'apex_daily_mobility';
+export const getPlacesStorageKey = (deviceId: string) => `apex_saved_places_${deviceId}`;
+export const getEventsStorageKey = (deviceId: string) => `apex_timeline_events_${deviceId}`;
+export const getStatsStorageKey = (deviceId: string, statDate: string) =>
+  `apex_daily_mobility_${deviceId}_${statDate}`;
+
+// Fallback legacy keys
+const LEGACY_STORAGE_PLACES_KEY = 'apex_saved_places';
+const LEGACY_STORAGE_EVENTS_KEY = 'apex_timeline_events';
+const LEGACY_STORAGE_STATS_KEY = 'apex_daily_mobility';
 
 // Default mock coordinates (Centred around a vibrant metropolitan district)
 export const DEFAULT_ANCHOR_COORDS = {
   latitude: 40.7128,
   longitude: -74.006,
 };
+
 
 // Default seed places for immediate out-of-the-box exploration
 export const DEFAULT_INITIAL_PLACES: Omit<SavedPlace, 'id' | 'user_id'>[] = [
@@ -390,24 +398,31 @@ export function estimateCommuteCost(
 // LocalStorage & Supabase Persistence Engine
 // ============================================================================
 
-export async function loadSavedPlaces(userId: string): Promise<SavedPlace[]> {
-  // 1. Try Supabase
+export async function loadSavedPlaces(
+  userId: string,
+  deviceId = getDeviceId()
+): Promise<SavedPlace[]> {
+  const deviceKey = getPlacesStorageKey(deviceId);
+
+  // 1. Try Supabase (fetch places belonging to this device or shared global defaults)
   try {
     const { data, error } = await supabase
       .from('saved_places')
       .select('*, categories(name), tasks(title, amount), contacts_ledger(contact_name, amount, type)')
+      .eq('user_id', userId)
+      .or(`device_id.eq.${deviceId},device_id.is.null`)
       .order('created_at', { ascending: false });
 
     if (!error && data && data.length > 0) {
-      localStorage.setItem(STORAGE_PLACES_KEY, JSON.stringify(data));
+      localStorage.setItem(deviceKey, JSON.stringify(data));
       return data as SavedPlace[];
     }
   } catch {
     // Fall back to local storage
   }
 
-  // 2. Fall back to localStorage
-  const raw = localStorage.getItem(STORAGE_PLACES_KEY);
+  // 2. Fall back to device-specific localStorage
+  const raw = localStorage.getItem(deviceKey) || localStorage.getItem(LEGACY_STORAGE_PLACES_KEY);
   if (raw) {
     try {
       const parsed = JSON.parse(raw);
@@ -419,21 +434,28 @@ export async function loadSavedPlaces(userId: string): Promise<SavedPlace[]> {
     }
   }
 
-  // 3. Seed default places
+  // 3. Seed default places for this physical device
   const initialPlaces: SavedPlace[] = DEFAULT_INITIAL_PLACES.map((p, idx) => ({
     ...p,
-    id: `seed-place-${idx + 1}`,
+    id: `seed-place-${deviceId.slice(0, 8)}-${idx + 1}`,
     user_id: userId,
+    device_id: deviceId,
     created_at: new Date().toISOString(),
   }));
-  localStorage.setItem(STORAGE_PLACES_KEY, JSON.stringify(initialPlaces));
+  localStorage.setItem(deviceKey, JSON.stringify(initialPlaces));
   return initialPlaces;
 }
 
-export async function persistSavedPlace(userId: string, place: Partial<SavedPlace>): Promise<SavedPlace> {
+export async function persistSavedPlace(
+  userId: string,
+  place: Partial<SavedPlace>,
+  deviceId = getDeviceId()
+): Promise<SavedPlace> {
+  const deviceKey = getPlacesStorageKey(deviceId);
   const newPlace: SavedPlace = {
     id: place.id || `place-${Date.now()}`,
     user_id: userId,
+    device_id: deviceId,
     name: place.name || 'New Geofence Place',
     latitude: place.latitude || DEFAULT_ANCHOR_COORDS.latitude,
     longitude: place.longitude || DEFAULT_ANCHOR_COORDS.longitude,
@@ -454,45 +476,59 @@ export async function persistSavedPlace(userId: string, place: Partial<SavedPlac
     // ignore
   }
 
-  // Update local storage
-  const current = await loadSavedPlaces(userId);
+  // Update device-scoped local storage
+  const current = await loadSavedPlaces(userId, deviceId);
   const updated = [newPlace, ...current.filter((p) => p.id !== newPlace.id)];
-  localStorage.setItem(STORAGE_PLACES_KEY, JSON.stringify(updated));
+  localStorage.setItem(deviceKey, JSON.stringify(updated));
   return newPlace;
 }
 
-export async function removeSavedPlace(userId: string, placeId: string): Promise<void> {
+export async function removeSavedPlace(
+  userId: string,
+  placeId: string,
+  deviceId = getDeviceId()
+): Promise<void> {
+  const deviceKey = getPlacesStorageKey(deviceId);
   try {
     await supabase.from('saved_places').delete().eq('id', placeId);
   } catch {
     // ignore
   }
 
-  const current = await loadSavedPlaces(userId);
+  const current = await loadSavedPlaces(userId, deviceId);
   const updated = current.filter((p) => p.id !== placeId);
-  localStorage.setItem(STORAGE_PLACES_KEY, JSON.stringify(updated));
+  localStorage.setItem(deviceKey, JSON.stringify(updated));
 }
 
 // ----------------------------------------------------------------------------
-// Timeline Events Persistence
+// Timeline Events Persistence (Strictly Unique to Physical Device)
 // ----------------------------------------------------------------------------
-export async function loadTimelineEvents(userId: string): Promise<MobilityTimelineEvent[]> {
+export async function loadTimelineEvents(
+  userId: string,
+  deviceId = getDeviceId()
+): Promise<MobilityTimelineEvent[]> {
+  const deviceKey = getEventsStorageKey(deviceId);
+
   try {
     const { data, error } = await supabase
       .from('mobility_timeline_events')
       .select('*')
+      .eq('user_id', userId)
+      .eq('device_id', deviceId)
       .order('start_time', { ascending: false });
 
     if (!error && data && data.length > 0) {
-      localStorage.setItem(STORAGE_EVENTS_KEY, JSON.stringify(data));
+      localStorage.setItem(deviceKey, JSON.stringify(data));
       return data as MobilityTimelineEvent[];
     }
   } catch {
     // fallback
   }
 
-  const raw = localStorage.getItem(STORAGE_EVENTS_KEY);
+  const raw =
+    localStorage.getItem(deviceKey) || localStorage.getItem(LEGACY_STORAGE_EVENTS_KEY);
   if (raw) {
+
     try {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
@@ -503,11 +539,13 @@ export async function loadTimelineEvents(userId: string): Promise<MobilityTimeli
     }
   }
 
-  // Seed sample initial timeline events for today
+  // Seed sample initial timeline events for this physical device
   const sampleEvents: MobilityTimelineEvent[] = [
     {
-      id: 'event-init-1',
+      id: `event-${deviceId.slice(0, 6)}-1`,
       user_id: userId,
+      device_id: deviceId,
+      device_name: getDeviceName(),
       event_type: 'trip',
       title: 'Morning Office Commute (Express)',
       start_time: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
@@ -525,8 +563,10 @@ export async function loadTimelineEvents(userId: string): Promise<MobilityTimeli
       created_at: new Date().toISOString(),
     },
     {
-      id: 'event-init-2',
+      id: `event-${deviceId.slice(0, 6)}-2`,
       user_id: userId,
+      device_id: deviceId,
+      device_name: getDeviceName(),
       event_type: 'stay',
       title: 'Work Stay at Office HQ',
       start_time: new Date(Date.now() - 3.5 * 3600 * 1000).toISOString(),
@@ -538,8 +578,10 @@ export async function loadTimelineEvents(userId: string): Promise<MobilityTimeli
       created_at: new Date().toISOString(),
     },
     {
-      id: 'event-init-3',
+      id: `event-${deviceId.slice(0, 6)}-3`,
       user_id: userId,
+      device_id: deviceId,
+      device_name: getDeviceName(),
       event_type: 'trip',
       title: 'Lunch Errand in Heavy Traffic',
       start_time: new Date(Date.now() - 55 * 60 * 1000).toISOString(),
@@ -558,37 +600,50 @@ export async function loadTimelineEvents(userId: string): Promise<MobilityTimeli
     },
   ];
 
-  localStorage.setItem(STORAGE_EVENTS_KEY, JSON.stringify(sampleEvents));
+  localStorage.setItem(deviceKey, JSON.stringify(sampleEvents));
   return sampleEvents;
 }
 
 export async function persistTimelineEvent(
   userId: string,
-  event: MobilityTimelineEvent
+  event: MobilityTimelineEvent,
+  deviceId = getDeviceId()
 ): Promise<void> {
+  const deviceKey = getEventsStorageKey(deviceId);
+  const enrichedEvent: MobilityTimelineEvent = {
+    ...event,
+    device_id: deviceId,
+    device_name: event.device_name || getDeviceName(),
+  };
+
   try {
-    await supabase.from('mobility_timeline_events').upsert(event);
+    await supabase.from('mobility_timeline_events').upsert(enrichedEvent);
   } catch {
     // ignore
   }
 
-  const current = await loadTimelineEvents(userId);
-  const updated = [event, ...current.filter((e) => e.id !== event.id)];
-  localStorage.setItem(STORAGE_EVENTS_KEY, JSON.stringify(updated));
+  const current = await loadTimelineEvents(userId, deviceId);
+  const updated = [enrichedEvent, ...current.filter((e) => e.id !== enrichedEvent.id)];
+  localStorage.setItem(deviceKey, JSON.stringify(updated));
 }
 
 // ----------------------------------------------------------------------------
-// Daily Mobility Statistics
+// Daily Mobility Statistics (Unique to Physical Device)
 // ----------------------------------------------------------------------------
 export async function loadDailyMobilityStats(
   userId: string,
-  statDate: string
+  statDate: string,
+  deviceId = getDeviceId()
 ): Promise<DailyMobilityStats> {
+  const deviceKey = getStatsStorageKey(deviceId, statDate);
+
   try {
     const { data } = await supabase
       .from('daily_mobility_stats')
       .select('*')
+      .eq('user_id', userId)
       .eq('stat_date', statDate)
+      .eq('device_id', deviceId)
       .maybeSingle();
 
     if (data) {
@@ -598,8 +653,11 @@ export async function loadDailyMobilityStats(
     // fallback
   }
 
-  const raw = localStorage.getItem(`${STORAGE_STATS_KEY}_${statDate}`);
+  const raw =
+    localStorage.getItem(deviceKey) ||
+    localStorage.getItem(`${LEGACY_STORAGE_STATS_KEY}_${statDate}`);
   if (raw) {
+
     try {
       return JSON.parse(raw);
     } catch {
@@ -609,6 +667,7 @@ export async function loadDailyMobilityStats(
 
   const defaultStats: DailyMobilityStats = {
     user_id: userId,
+    device_id: deviceId,
     stat_date: statDate,
     total_distance_km: 18.0,
     transit_time_minutes: 50,
@@ -622,19 +681,22 @@ export async function loadDailyMobilityStats(
     created_at: new Date().toISOString(),
   };
 
-  localStorage.setItem(`${STORAGE_STATS_KEY}_${statDate}`, JSON.stringify(defaultStats));
+  localStorage.setItem(deviceKey, JSON.stringify(defaultStats));
   return defaultStats;
 }
 
 export async function updateDailyMobilityStats(
   userId: string,
-  delta: Partial<DailyMobilityStats>
+  delta: Partial<DailyMobilityStats>,
+  deviceId = getDeviceId()
 ): Promise<DailyMobilityStats> {
   const today = new Date().toISOString().slice(0, 10);
-  const current = await loadDailyMobilityStats(userId, today);
+  const deviceKey = getStatsStorageKey(deviceId, today);
+  const current = await loadDailyMobilityStats(userId, today, deviceId);
 
   const updated: DailyMobilityStats = {
     ...current,
+    device_id: deviceId,
     total_distance_km: Number((current.total_distance_km + (delta.total_distance_km || 0)).toFixed(2)),
     transit_time_minutes: current.transit_time_minutes + (delta.transit_time_minutes || 0),
     walking_km: Number((current.walking_km + (delta.walking_km || 0)).toFixed(2)),
@@ -656,9 +718,10 @@ export async function updateDailyMobilityStats(
     // ignore
   }
 
-  localStorage.setItem(`${STORAGE_STATS_KEY}_${today}`, JSON.stringify(updated));
+  localStorage.setItem(deviceKey, JSON.stringify(updated));
   return updated;
 }
+
 
 // ============================================================================
 // Mock GPS Route Simulation Engine

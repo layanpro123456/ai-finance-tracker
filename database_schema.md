@@ -254,3 +254,43 @@ CREATE INDEX IF NOT EXISTS idx_saved_places_user ON public.saved_places(user_id)
 CREATE INDEX IF NOT EXISTS idx_mobility_events_user_time ON public.mobility_timeline_events(user_id, start_time DESC);
 CREATE INDEX IF NOT EXISTS idx_mobility_stats_user_date ON public.daily_mobility_stats(user_id, stat_date DESC);
 ```
+
+---
+
+## 12. Single-Device Session Enforcement & Device-Bound Location Data
+
+To maintain spatial telemetry integrity and prevent route crosstalk, simultaneous multi-device logins are strictly locked out, and location data is partitioned by hardware `device_id`.
+
+```sql
+-- Active User Device Sessions (1 Active Session Allowed per User)
+CREATE TABLE IF NOT EXISTS public.user_device_sessions (
+    user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    active_device_id TEXT NOT NULL,
+    device_name TEXT NOT NULL,
+    platform TEXT DEFAULT 'web',
+    last_active_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Row Level Security
+ALTER TABLE public.user_device_sessions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view and manage their active device session"
+    ON public.user_device_sessions FOR ALL
+    USING (auth.uid() = user_id);
+
+-- Device-Partitioning Columns on Location Tables
+ALTER TABLE public.mobility_timeline_events ADD COLUMN IF NOT EXISTS device_id TEXT;
+ALTER TABLE public.mobility_timeline_events ADD COLUMN IF NOT EXISTS device_name TEXT;
+ALTER TABLE public.daily_mobility_stats ADD COLUMN IF NOT EXISTS device_id TEXT;
+ALTER TABLE public.saved_places ADD COLUMN IF NOT EXISTS device_id TEXT;
+
+-- Hardware Isolation Indexes
+CREATE INDEX IF NOT EXISTS idx_mobility_events_device 
+    ON public.mobility_timeline_events(user_id, device_id, start_time DESC);
+
+CREATE INDEX IF NOT EXISTS idx_daily_mobility_stats_device 
+    ON public.daily_mobility_stats(user_id, device_id, stat_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_saved_places_device 
+    ON public.saved_places(user_id, device_id);
+```

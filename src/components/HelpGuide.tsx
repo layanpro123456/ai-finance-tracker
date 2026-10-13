@@ -538,7 +538,22 @@ export const HelpGuide: React.FC<HelpGuideProps> = ({ onNavigateTab }) => {
                     Testing on a desktop computer? Switch the toggle from <em>Device GPS</em> to <strong>Route Simulator</strong>. Select from scenarios like <em>&ldquo;Walk to Supermarket&rdquo;</em>, <em>&ldquo;City Commute with Heavy Traffic Jam&rdquo;</em>, or <em>&ldquo;Highway Express&rdquo;</em>, and use the dynamic speed slider (0–100 km/h) to test live speedometers and geofence alerts without leaving your desk!
                   </p>
                 </div>
+
+                <div className="p-5 rounded-2xl bg-slate-950 border border-emerald-500/20 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="w-4 h-4 text-emerald-400" />
+                    <h3 className="text-sm font-bold text-white">Device-Unique Location Isolation &amp; Single-Device Lock</h3>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    <strong>Why is location telemetry unique per physical device?</strong> Your GPS fixes, velocity timeline, and transit statistics belong to the specific hardware carrying you. To prevent route crosstalk, inaccurate travel logs, and location pollution, Apex LifeOS enforces strict device-bound isolation.
+                  </p>
+                  <ul className="text-xs text-slate-400 space-y-1 list-disc pl-5">
+                    <li><strong className="text-slate-200">1 Device Active At A Time:</strong> Logging in from a second device will safely lock and sign out previous sessions, ensuring only your active device can record location and manage your timeline.</li>
+                    <li><strong className="text-slate-200">Zero Multi-Device Interference:</strong> Your phone&apos;s daily commute data and your computer&apos;s simulator runs remain separated by hardware device ID.</li>
+                  </ul>
+                </div>
               </div>
+
 
               <button
                 onClick={() => onNavigateTab('timeline')}

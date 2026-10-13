@@ -18,9 +18,12 @@ import {
   HelpCircle,
   Shield,
   Navigation,
+  Smartphone,
 } from 'lucide-react';
+import { getDeviceName } from '../services/deviceSessionService';
 
 export type ErpTab =
+
   | 'dashboard'
   | 'transactions'
   | 'accounts'
@@ -187,6 +190,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <HelpCircle className="w-4 h-4" />
               </button>
 
+              {/* Active Single Device Badge */}
+              <span
+                className="hidden lg:inline-flex items-center gap-1.5 text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2.5 py-1.5 rounded-xl border border-emerald-500/20"
+                title="Single Active Device Lock: Location data is bound to this device"
+              >
+                <Smartphone className="w-3 h-3 text-emerald-400" />
+                <span className="max-w-[110px] truncate">{getDeviceName()}</span>
+              </span>
+
               <span className="hidden sm:inline-block text-xs font-medium text-slate-400 bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-700/50 max-w-[150px] truncate">
                 {userEmail}
               </span>
@@ -199,6 +211,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <LogOut className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Logout</span>
               </button>
+
             </div>
           </div>
 
