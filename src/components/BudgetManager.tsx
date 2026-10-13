@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import type { Budget, Category, Transaction } from '../types';
 import { supabase } from '../supabaseClient';
+import { usePreferences } from '../context/PreferencesContext';
 import { PieChart, Plus, AlertTriangle, CheckCircle2, X, Loader2 } from 'lucide-react';
 
 interface BudgetManagerProps {
@@ -81,12 +82,7 @@ export const BudgetManager: React.FC<BudgetManagerProps> = ({
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
+  const { formatCurrency } = usePreferences();
 
   // Only expense categories can have budgets
   const expenseCategories = categories.filter((c) => c.type === 'expense');

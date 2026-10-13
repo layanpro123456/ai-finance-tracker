@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Transaction, Account, Category } from '../types';
 import { supabase } from '../supabaseClient';
+import { usePreferences } from '../context/PreferencesContext';
 import {
   Receipt,
   Search,
@@ -117,12 +118,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
+  const { formatCurrency, formatDate } = usePreferences();
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
@@ -278,7 +274,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                       <span>•</span>
                       <span className="flex items-center gap-1 text-slate-500">
                         <Calendar className="w-3 h-3" />
-                        {t.transaction_date}
+                        {formatDate(t.transaction_date)}
                       </span>
                     </div>
                   </div>

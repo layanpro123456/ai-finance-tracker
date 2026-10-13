@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Account } from '../types';
 import { supabase } from '../supabaseClient';
+import { usePreferences } from '../context/PreferencesContext';
 import { Wallet, Plus, Trash2, AlertCircle, Loader2 } from 'lucide-react';
 
 interface AccountManagerProps {
@@ -14,10 +15,11 @@ export const AccountManager: React.FC<AccountManagerProps> = ({
   accounts,
   onAccountUpdated,
 }) => {
+  const { preferences } = usePreferences();
   const [showAddModal, setShowAddModal] = useState(false);
   const [name, setName] = useState('');
   const [balance, setBalance] = useState<number>(0);
-  const [currency, setCurrency] = useState('USD');
+  const [currency, setCurrency] = useState(preferences.currency || 'USD');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -123,9 +125,9 @@ export const AccountManager: React.FC<AccountManagerProps> = ({
               <div className="mt-4">
                 <span className="text-xs text-slate-500 block">Current Balance</span>
                 <span className="text-xl font-bold text-white tracking-tight">
-                  {new Intl.NumberFormat('en-US', {
+                  {new Intl.NumberFormat(undefined, {
                     style: 'currency',
-                    currency: acc.currency || 'USD',
+                    currency: acc.currency || preferences.currency || 'USD',
                   }).format(Number(acc.balance))}
                 </span>
               </div>

@@ -21,6 +21,8 @@ import { TaskManager } from './components/TaskManager';
 import { AssetManager } from './components/AssetManager';
 import { SubscriptionManager } from './components/SubscriptionManager';
 import { ContactsLedgerManager } from './components/ContactsLedgerManager';
+import { HelpGuide } from './components/HelpGuide';
+import { usePreferences } from './context/PreferencesContext';
 import {
   Loader2,
   ArrowRight,
@@ -31,6 +33,7 @@ import {
 import type { User } from '@supabase/supabase-js';
 
 export function App() {
+  const { formatCurrency, formatDate } = usePreferences();
   const [user, setUser] = useState<User | null>(null);
   const [authChecking, setAuthChecking] = useState(true);
   const [dataLoading, setDataLoading] = useState(false);
@@ -232,12 +235,20 @@ export function App() {
                 <strong>ERP Tables Ready:</strong> Execute <code className="bg-slate-900 px-2 py-0.5 rounded text-amber-200">supabase/migrations/20261013_personal_erp_expansion.sql</code> in your Supabase SQL Editor to enable persistent cloud storage for Tasks, Assets &amp; Subscriptions.
               </span>
             </div>
-            <button
-              onClick={() => setMigrationNotice(null)}
-              className="text-amber-400 hover:text-white px-2 py-1"
-            >
-              Dismiss
-            </button>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => setActiveTab('help')}
+                className="underline text-amber-300 hover:text-white font-semibold cursor-pointer"
+              >
+                View Setup Guide →
+              </button>
+              <button
+                onClick={() => setMigrationNotice(null)}
+                className="text-amber-400 hover:text-white px-2 py-1 cursor-pointer"
+              >
+                Dismiss
+              </button>
+            </div>
           </div>
         )}
 
@@ -315,16 +326,13 @@ export function App() {
                                     : 'bg-rose-500/10 text-rose-400'
                                 }`}
                               >
-                                {task.financial_type === 'receivable' ? '+' : '-'}$
-                                {Number(task.amount).toFixed(2)}
+                                {task.financial_type === 'receivable' ? '+' : '-'}
+                                {formatCurrency(Number(task.amount))}
                               </span>
                             )}
                             {task.due_date && (
                               <span className="text-slate-500">
-                                {new Date(task.due_date).toLocaleDateString(undefined, {
-                                  month: 'short',
-                                  day: 'numeric',
-                                })}
+                                {formatDate(task.due_date)}
                               </span>
                             )}
                           </div>
@@ -409,7 +417,7 @@ export function App() {
                         >
                           <span className="font-medium text-slate-200">{sub.name}</span>
                           <span className="font-bold text-white">
-                            ${Number(sub.cost).toFixed(2)}
+                            {formatCurrency(Number(sub.cost))}
                             <span className="text-[10px] text-slate-500 font-normal">
                               /{sub.billing_cycle === 'monthly' ? 'mo' : 'yr'}
                             </span>
@@ -535,6 +543,13 @@ export function App() {
             accounts={accounts}
             onLedgerUpdated={fetchData}
           />
+        )}
+
+        {/* ========================================================================= */}
+        {/* HELP & DOCUMENTATION MODULE TAB */}
+        {/* ========================================================================= */}
+        {activeTab === 'help' && (
+          <HelpGuide onNavigateTab={setActiveTab} />
         )}
       </main>
     </div>

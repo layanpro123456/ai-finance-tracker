@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Task, Account, Category, TaskPriority, FinancialTaskType } from '../types';
 import { supabase } from '../supabaseClient';
+import { usePreferences } from '../context/PreferencesContext';
 import {
   CheckCircle2,
   Circle,
@@ -35,6 +36,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
   categories,
   onTasksUpdated,
 }) => {
+  const { formatCurrency, formatDate } = usePreferences();
   const [filter, setFilter] = useState<'all' | 'financial' | 'personal' | 'completed'>('all');
   const [isAdding, setIsAdding] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -257,7 +259,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
           <div>
             <p className="text-xs font-semibold text-rose-400 uppercase tracking-wider">Pending Bills / Outflow</p>
             <p className="text-2xl font-bold text-white mt-1">
-              ${pendingPayablesTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              {formatCurrency(pendingPayablesTotal)}
             </p>
           </div>
           <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl">
@@ -269,7 +271,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
           <div>
             <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Pending Freelance / Inflow</p>
             <p className="text-2xl font-bold text-white mt-1">
-              ${pendingReceivablesTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              {formatCurrency(pendingReceivablesTotal)}
             </p>
           </div>
           <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl">
@@ -636,8 +638,8 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                             }`}
                           >
                             <DollarSign className="w-3 h-3" />
-                            {task.financial_type === 'receivable' ? '+' : '-'}$
-                            {Number(task.amount).toFixed(2)}
+                            {task.financial_type === 'receivable' ? '+' : '-'}
+                            {formatCurrency(Number(task.amount))}
                           </span>
                         )}
 
@@ -660,12 +662,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                             }`}
                           >
                             <Calendar className="w-3 h-3" />
-                            <span>
-                              {new Date(task.due_date).toLocaleDateString(undefined, {
-                                month: 'short',
-                                day: 'numeric',
-                              })}
-                            </span>
+                            <span>{formatDate(task.due_date)}</span>
                             {isOverdue && <span className="text-[10px]">(Overdue)</span>}
                           </div>
                         )}

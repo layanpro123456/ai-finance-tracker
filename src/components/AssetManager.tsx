@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { PersonalAsset, AssetCategory, AssetStatus } from '../types';
 import { supabase } from '../supabaseClient';
+import { usePreferences } from '../context/PreferencesContext';
 import {
   Package,
   Plus,
@@ -32,6 +33,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({
   assets,
   onAssetsUpdated,
 }) => {
+  const { formatCurrency, formatDate } = usePreferences();
   const [isAdding, setIsAdding] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -146,7 +148,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({
               Total Fixed Asset Value
             </p>
             <p className="text-2xl font-bold text-white mt-1">
-              ${totalCurrentValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              {formatCurrency(totalCurrentValue)}
             </p>
             <p className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
               <span>Feeds directly into Net Worth</span>
@@ -163,7 +165,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({
               Original Acquisition Cost
             </p>
             <p className="text-2xl font-bold text-white mt-1">
-              ${totalOriginalCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              {formatCurrency(totalOriginalCost)}
             </p>
             <p className="text-xs text-slate-400 mt-1">
               {activeAssets.length} active registered items
@@ -185,7 +187,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({
               }`}
             >
               {deltaValue >= 0 ? '+' : ''}
-              ${deltaValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              {formatCurrency(deltaValue)}
             </p>
             <p
               className={`text-xs mt-1 flex items-center gap-1 ${
@@ -438,7 +440,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({
                           Current Value
                         </span>
                         <span className="text-base font-bold text-white">
-                          ${Number(asset.current_value).toFixed(2)}
+                          {formatCurrency(Number(asset.current_value))}
                         </span>
                       </div>
                       <div>
@@ -446,14 +448,14 @@ export const AssetManager: React.FC<AssetManagerProps> = ({
                           Acquired At
                         </span>
                         <span className="text-xs font-semibold text-slate-300">
-                          ${Number(asset.purchase_price).toFixed(2)}
+                          {formatCurrency(Number(asset.purchase_price))}
                         </span>
                         <span
                           className={`text-[10px] block font-medium ${
                             diffCost >= 0 ? 'text-emerald-400' : 'text-rose-400'
                           }`}
                         >
-                          {diffCost >= 0 ? '+' : ''}${diffCost.toFixed(2)}
+                          {diffCost >= 0 ? '+' : ''}{formatCurrency(diffCost)}
                         </span>
                       </div>
                     </div>
@@ -475,12 +477,12 @@ export const AssetManager: React.FC<AssetManagerProps> = ({
                           {isWarrantyExpired ? (
                             <span className="inline-flex items-center gap-1 text-[11px] text-rose-400 font-medium">
                               <ShieldAlert className="w-3.5 h-3.5" />
-                              Warranty expired ({warrantyDate.toLocaleDateString()})
+                              Warranty expired ({formatDate(warrantyDate)})
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 font-medium">
                               <ShieldCheck className="w-3.5 h-3.5" />
-                              Under warranty until {warrantyDate.toLocaleDateString()}
+                              Under warranty until {formatDate(warrantyDate)}
                             </span>
                           )}
                         </div>
@@ -492,7 +494,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({
                     <span className="flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
                       {asset.purchase_date
-                        ? `Purchased ${new Date(asset.purchase_date).toLocaleDateString()}`
+                        ? `Purchased ${formatDate(asset.purchase_date)}`
                         : 'No purchase date'}
                     </span>
                     <select

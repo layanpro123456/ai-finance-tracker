@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import type { Account, Transaction, PersonalAsset, ContactsLedger, Task } from '../types';
+import { usePreferences } from '../context/PreferencesContext';
 import { Wallet, TrendingUp, TrendingDown, PiggyBank } from 'lucide-react';
 
 interface MetricCardsProps {
@@ -58,12 +59,7 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
 
   const netSavings = monthlyIncome - monthlyExpense;
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(val);
-  };
+  const { formatCurrency } = usePreferences();
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

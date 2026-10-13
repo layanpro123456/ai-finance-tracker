@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { ContactsLedger, Account, ContactDebtType } from '../types';
 import { supabase } from '../supabaseClient';
+import { usePreferences } from '../context/PreferencesContext';
 import {
   Users,
   Plus,
@@ -28,6 +29,7 @@ export const ContactsLedgerManager: React.FC<ContactsLedgerManagerProps> = ({
   accounts,
   onLedgerUpdated,
 }) => {
+  const { formatCurrency, formatDate } = usePreferences();
   const [isAdding, setIsAdding] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -172,7 +174,7 @@ export const ContactsLedgerManager: React.FC<ContactsLedgerManagerProps> = ({
               They Owe You (Receivables)
             </p>
             <p className="text-2xl font-bold text-white mt-1">
-              ${totalTheyOweMe.toFixed(2)}
+              {formatCurrency(totalTheyOweMe)}
             </p>
             <p className="text-xs text-slate-400 mt-1">Money expected back</p>
           </div>
@@ -187,7 +189,7 @@ export const ContactsLedgerManager: React.FC<ContactsLedgerManagerProps> = ({
               You Owe Others (Payables)
             </p>
             <p className="text-2xl font-bold text-white mt-1">
-              ${totalIOweThem.toFixed(2)}
+              {formatCurrency(totalIOweThem)}
             </p>
             <p className="text-xs text-slate-400 mt-1">Pending payments to friends</p>
           </div>
@@ -206,7 +208,7 @@ export const ContactsLedgerManager: React.FC<ContactsLedgerManagerProps> = ({
                 netBalance >= 0 ? 'text-emerald-400' : 'text-rose-400'
               }`}
             >
-              {netBalance >= 0 ? '+' : ''}${netBalance.toFixed(2)}
+              {netBalance >= 0 ? '+' : ''}{formatCurrency(netBalance)}
             </p>
             <p className="text-xs text-slate-400 mt-1">
               {netBalance >= 0 ? 'You are in the green' : 'You have outstanding debts'}
@@ -403,7 +405,7 @@ export const ContactsLedgerManager: React.FC<ContactsLedgerManagerProps> = ({
                     {item.due_date && (
                       <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-1">
                         <Calendar className="w-3 h-3" />
-                        <span>Due {new Date(item.due_date).toLocaleDateString()}</span>
+                        <span>Due {formatDate(item.due_date)}</span>
                       </div>
                     )}
                   </div>
@@ -416,7 +418,7 @@ export const ContactsLedgerManager: React.FC<ContactsLedgerManagerProps> = ({
                         item.type === 'they_owe_me' ? 'text-emerald-400' : 'text-rose-400'
                       }`}
                     >
-                      ${Number(item.amount).toFixed(2)}
+                      {formatCurrency(Number(item.amount))}
                     </span>
                   </div>
 

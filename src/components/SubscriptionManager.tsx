@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Subscription, Account, Category, BillingCycle } from '../types';
 import { supabase } from '../supabaseClient';
+import { usePreferences } from '../context/PreferencesContext';
 import {
   CreditCard,
   Plus,
@@ -29,6 +30,7 @@ export const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({
   categories,
   onSubscriptionsUpdated,
 }) => {
+  const { formatCurrency, formatDate } = usePreferences();
   const [isAdding, setIsAdding] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -192,7 +194,7 @@ export const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({
               Monthly Subscription Burn
             </p>
             <p className="text-2xl font-bold text-white mt-1">
-              ${monthlyBurn.toFixed(2)}
+              {formatCurrency(monthlyBurn)}
               <span className="text-xs font-normal text-slate-400"> / month</span>
             </p>
             <p className="text-xs text-slate-400 mt-1">
@@ -210,7 +212,7 @@ export const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({
               Annual Recurring Cost
             </p>
             <p className="text-2xl font-bold text-white mt-1">
-              ${yearlyBurn.toFixed(2)}
+              {formatCurrency(yearlyBurn)}
               <span className="text-xs font-normal text-slate-400"> / year</span>
             </p>
             <p className="text-xs text-slate-400 mt-1">
@@ -467,7 +469,7 @@ export const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3.5 h-3.5 text-slate-500" />
                           <span>
-                            Renews {renewalDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                            Renews {formatDate(renewalDate)}
                           </span>
                         </span>
 
@@ -495,7 +497,7 @@ export const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({
                   <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-0 border-slate-850">
                     <div className="text-right">
                       <span className="text-base font-bold text-white block">
-                        ${Number(sub.cost).toFixed(2)}
+                        {formatCurrency(Number(sub.cost))}
                       </span>
                       <span className="text-[10px] text-slate-500">
                         per {sub.billing_cycle.replace('ly', '')}
