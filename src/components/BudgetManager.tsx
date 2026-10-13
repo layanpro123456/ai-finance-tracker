@@ -3,7 +3,7 @@ import type { Budget, Category, Transaction } from '../types';
 import { supabase } from '../supabaseClient';
 import { usePreferences } from '../context/PreferencesContext';
 import { CurrencyLogo } from './CurrencyLogo';
-import { PieChart, Plus, AlertTriangle, CheckCircle2, X, Loader2 } from 'lucide-react';
+import { PieChart, Plus, AlertTriangle, CheckCircle2, X, Loader2, RotateCcw } from 'lucide-react';
 
 interface BudgetManagerProps {
   userId: string;
@@ -88,9 +88,37 @@ export const BudgetManager: React.FC<BudgetManagerProps> = ({
   // Only expense categories can have budgets
   const expenseCategories = categories.filter((c) => c.type === 'expense');
 
+  const [isResetting, setIsResetting] = useState(false);
+
+  const handleResetBudgets = async () => {
+    if (budgets.length === 0) {
+      alert('No budgets set for this month.');
+      return;
+    }
+    if (
+      !window.confirm(
+        `Are you sure you want to reset and delete all ${budgets.length} budget limits for ${currentMonthTitle}? This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    setIsResetting(true);
+    try {
+      const { error } = await supabase.from('budgets').delete().eq('user_id', userId);
+      if (error) throw error;
+      onBudgetsUpdated();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to reset budgets';
+      alert(msg);
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
             <PieChart className="w-5 h-5" />
@@ -103,18 +131,34 @@ export const BudgetManager: React.FC<BudgetManagerProps> = ({
           </div>
         </div>
 
-        <button
-          onClick={() => {
-            if (expenseCategories.length > 0 && !selectedCategoryId) {
-              setSelectedCategoryId(expenseCategories[0].id);
-            }
-            setShowAddModal(true);
-          }}
-          className="text-xs font-semibold px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center gap-1.5 transition shadow-lg shadow-emerald-500/10 cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Set Budget</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={handleResetBudgets}
+            disabled={isResetting || budgets.length === 0}
+            title="Reset and clear all monthly budgets"
+            className="text-xs font-semibold px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/25 flex items-center gap-1.5 transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          >
+            {isResetting ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <RotateCcw className="w-3.5 h-3.5" />
+            )}
+            <span>Reset Budgets</span>
+          </button>
+
+          <button
+            onClick={() => {
+              if (expenseCategories.length > 0 && !selectedCategoryId) {
+                setSelectedCategoryId(expenseCategories[0].id);
+              }
+              setShowAddModal(true);
+            }}
+            className="text-xs font-semibold px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center gap-1.5 transition shadow-lg shadow-emerald-500/10 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Set Budget</span>
+          </button>
+        </div>
       </div>
 
       {budgets.length === 0 ? (
@@ -201,7 +245,7 @@ export const BudgetManager: React.FC<BudgetManagerProps> = ({
       {/* Add / Edit Budget Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
+          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-white">Set Monthly Budget</h3>
               <button

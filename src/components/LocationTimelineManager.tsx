@@ -393,6 +393,63 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
     }
   };
 
+  const [isResetting, setIsResetting] = useState(false);
+
+  const handleResetTimeline = async () => {
+    if (
+      !window.confirm(
+        'Are you sure you want to reset all timeline events, commute trips, and mobility statistics for this device? This action cannot be undone.'
+      )
+    ) {
+      return;
+    }
+
+    setIsResetting(true);
+    try {
+      const devId = deviceInfo.deviceId;
+      // 1. Clear Supabase timeline events if connected
+      try {
+        await supabase.from('mobility_timeline_events').delete().eq('user_id', userId).eq('device_id', devId);
+      } catch {
+        // ignore
+      }
+
+      // 2. Clear localStorage keys
+      localStorage.removeItem(`apex_events_${devId}`);
+      localStorage.removeItem(`apex_mobility_events_${devId}`);
+      localStorage.removeItem('apex_mobility_timeline_events');
+      const today = new Date().toISOString().split('T')[0];
+      localStorage.removeItem(`apex_daily_mobility_stats_${today}_${devId}`);
+      localStorage.removeItem(`apex_daily_mobility_stats_${today}`);
+
+      // 3. Reset React state
+      setEvents([]);
+      setDailyStats({
+        user_id: userId,
+        device_id: devId,
+        stat_date: today,
+        total_distance_km: 0,
+        transit_time_minutes: 0,
+        walking_km: 0,
+        cycling_km: 0,
+        vehicle_km: 0,
+        estimated_transit_cost: 0,
+        logged_transit_cost: 0,
+        top_speed_kmh: 0,
+        active_stops_count: 0,
+      });
+      classifierRef.current.resetTrip();
+      setCurrentSpeedKmh(0);
+      setClassifiedMode('stationary');
+      setIsInTraffic(false);
+      setStatusMessage('Timeline cleared. Telemetry calibrated.');
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to reset timeline');
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   // Mode badge renderer
   const renderModeBadge = (mode: TransportMode, inTraffic = false) => {
     if (mode === 'vehicle' && inTraffic) {
@@ -513,6 +570,20 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
                 <span>Device GPS</span>
               </button>
             </div>
+
+            <button
+              onClick={handleResetTimeline}
+              disabled={isResetting || events.length === 0}
+              title="Reset recorded timeline events, commutes, and daily mobility stats for this device"
+              className="text-xs font-semibold px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/25 flex items-center gap-1.5 transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {isResetting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <RotateCcw className="w-3.5 h-3.5" />
+              )}
+              <span>Reset Timeline</span>
+            </button>
 
             <button
               onClick={() => setIsTracking(!isTracking)}
@@ -1092,8 +1163,9 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
       {/* ===================================================================== */}
       {showAddPlaceModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl relative space-y-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl relative space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+
               <div className="flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-emerald-400" />
                 <h3 className="text-base font-bold text-white">Add Geofenced Place</h3>
@@ -1281,8 +1353,9 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
       {/* ===================================================================== */}
       {loggingTrip && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl relative space-y-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl relative space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+
               <div className="flex items-center gap-2">
                 <Car className="w-5 h-5 text-emerald-400" />
                 <h3 className="text-base font-bold text-white">Log Commute Expense</h3>

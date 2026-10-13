@@ -29,6 +29,7 @@ import {
   Cpu,
   Camera,
   HeartPulse,
+  RotateCcw,
 } from 'lucide-react';
 
 interface HelpGuideProps {
@@ -191,7 +192,7 @@ export const HelpGuide: React.FC<HelpGuideProps> = ({ onNavigateTab }) => {
       {/* Main Grid: Sidebar Navigator + Content Panels */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Navigation Sidebar */}
-        <div className="space-y-2 lg:sticky lg:top-24 self-start">
+        <div className="lg:sticky lg:top-24 self-start">
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-2 mb-2">
             User Guide Chapters
           </p>
@@ -200,44 +201,46 @@ export const HelpGuide: React.FC<HelpGuideProps> = ({ onNavigateTab }) => {
               No topics matching &ldquo;{searchQuery}&rdquo;.
             </div>
           ) : (
-            filteredSections.map((sec) => (
-              <button
-                key={sec.id}
-                onClick={() => setActiveSection(sec.id)}
-                className={`w-full p-3 rounded-2xl border text-left transition flex items-center justify-between cursor-pointer ${
-                  activeSection === sec.id
-                    ? 'bg-slate-900 border-emerald-500/40 shadow-sm'
-                    : 'bg-slate-950/60 border-slate-850 hover:bg-slate-900/60 hover:border-slate-800'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`p-2 rounded-xl ${
-                      activeSection === sec.id
-                        ? 'bg-emerald-500/20 text-emerald-400'
-                        : 'bg-slate-900 border border-slate-800'
-                    }`}
-                  >
-                    {sec.icon}
-                  </div>
-                  <div>
+            <div className="flex lg:flex-col overflow-x-auto lg:overflow-visible gap-2 pb-2 lg:pb-0 no-scrollbar">
+              {filteredSections.map((sec) => (
+                <button
+                  key={sec.id}
+                  onClick={() => setActiveSection(sec.id)}
+                  className={`shrink-0 lg:w-full min-w-[200px] lg:min-w-0 p-3 rounded-2xl border text-left transition flex items-center justify-between cursor-pointer ${
+                    activeSection === sec.id
+                      ? 'bg-slate-900 border-emerald-500/40 shadow-sm'
+                      : 'bg-slate-950/60 border-slate-800 hover:bg-slate-900/60 hover:border-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
                     <div
-                      className={`text-xs font-bold ${
-                        activeSection === sec.id ? 'text-white' : 'text-slate-300'
+                      className={`p-2 rounded-xl shrink-0 ${
+                        activeSection === sec.id
+                          ? 'bg-emerald-500/20 text-emerald-400'
+                          : 'bg-slate-900 border border-slate-800'
                       }`}
                     >
-                      {sec.label}
+                      {sec.icon}
                     </div>
-                    <div className="text-[10px] text-slate-500 truncate max-w-[130px]">{sec.desc}</div>
+                    <div className="min-w-0">
+                      <div
+                        className={`text-xs font-bold truncate ${
+                          activeSection === sec.id ? 'text-white' : 'text-slate-300'
+                        }`}
+                      >
+                        {sec.label}
+                      </div>
+                      <div className="text-[10px] text-slate-500 truncate max-w-[130px]">{sec.desc}</div>
+                    </div>
                   </div>
-                </div>
-                <ArrowRight
-                  className={`w-3.5 h-3.5 ${
-                    activeSection === sec.id ? 'text-emerald-400' : 'text-slate-600'
-                  }`}
-                />
-              </button>
-            ))
+                  <ArrowRight
+                    className={`w-3.5 h-3.5 shrink-0 ml-2 ${
+                      activeSection === sec.id ? 'text-emerald-400' : 'text-slate-600'
+                    }`}
+                  />
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
@@ -906,6 +909,16 @@ export const HelpGuide: React.FC<HelpGuideProps> = ({ onNavigateTab }) => {
                   </h4>
                   <p className="text-xs text-slate-400 leading-relaxed">
                     Apex LifeOS will visually highlight the category with a red warning badge in the Budgets tab to inform you that you have exceeded your target limit. However, your transaction will still be recorded accurately so your bank balances remain 100% true.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1.5">
+                  <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <RotateCcw className="w-4 h-4 text-rose-400" />
+                    <span>How do I reset or clear data in a specific module?</span>
+                  </h4>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Every module in Apex LifeOS has its own independent <strong>&ldquo;Reset [Module]&rdquo;</strong> button located right in its header toolbar (e.g. Reset Transactions, Reset Accounts, Reset Budgets, Reset Tasks, Reset Timeline, Reset Assets, Reset Subscriptions, Reset Social Ledger). Clicking any reset button prompts you with a confirmation dialog so you can selectively refresh individual parts of your life without wiping your entire system.
                   </p>
                 </div>
               </div>

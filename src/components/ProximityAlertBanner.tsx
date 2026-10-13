@@ -95,26 +95,26 @@ export const ProximityAlertBanner: React.FC<ProximityAlertBannerProps> = ({
     <div className="sticky top-16 z-30 px-4 py-2 bg-gradient-to-r from-emerald-950/90 via-slate-900/95 to-teal-950/90 backdrop-blur-md border-b border-emerald-500/30 text-white shadow-lg animate-in fade-in slide-in-from-top-2 duration-300">
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         {/* Left side: Location & Radar Icon + Context */}
-        <div className="flex items-center gap-3">
-          <div className="relative flex items-center justify-center w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex-shrink-0">
+        <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
+          <div className="relative flex items-center justify-center w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 shrink-0">
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping" />
             <MapPin className="w-4 h-4" />
           </div>
 
-          <div className="space-y-0.5">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+          <div className="space-y-0.5 min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 shrink-0">
                 {getAlertIcon()}
                 <span>Proximity Payment Alert</span>
               </span>
-              <span className="text-xs text-slate-400 font-medium">
+              <span className="text-xs text-slate-400 font-medium truncate max-w-full">
                 {activeAlert.distanceMeters}m away from <strong className="text-white">{activeAlert.placeName}</strong>
               </span>
             </div>
-            <p className="text-xs text-slate-200">
+            <p className="text-xs text-slate-200 break-words">
               {activeAlert.reminderMessage}
               {activeAlert.budgetRemaining !== null && activeAlert.budgetRemaining !== undefined && (
-                <span className="ml-1 font-mono text-emerald-300 font-semibold">
+                <span className="ml-1 font-mono text-emerald-300 font-semibold whitespace-nowrap">
                   (Budget remaining: {symbol}{activeAlert.budgetRemaining.toLocaleString()})
                 </span>
               )}
@@ -123,7 +123,7 @@ export const ProximityAlertBanner: React.FC<ProximityAlertBannerProps> = ({
         </div>
 
         {/* Right side: Action Button & Dismiss */}
-        <div className="flex items-center gap-2 self-end sm:self-center">
+        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
           {alerts.length > 1 && (
             <span className="text-[10px] text-slate-400 font-mono hidden md:inline">
               +{alerts.length - 1} more nearby
@@ -133,7 +133,7 @@ export const ProximityAlertBanner: React.FC<ProximityAlertBannerProps> = ({
           <button
             onClick={() => onDismissAlert(activeAlert.placeId)}
             title="Dismiss proximity alert"
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer shrink-0"
           >
             <X className="w-4 h-4" />
           </button>

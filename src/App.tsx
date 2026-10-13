@@ -432,18 +432,18 @@ export function App() {
                       No pending tasks today. You are all caught up!
                     </p>
                   ) : (
-                    <div className="divide-y divide-slate-850">
+                    <div className="divide-y divide-slate-800">
                       {pendingTasks.slice(0, 4).map((task) => (
                         <div
                           key={task.id}
-                          className="py-2.5 flex items-center justify-between text-xs"
+                          className="py-2.5 flex items-center justify-between text-xs gap-3"
                         >
-                          <div className="flex items-center gap-2.5">
-                            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                            <span className="font-medium text-slate-200">{task.title}</span>
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                            <span className="font-medium text-slate-200 truncate">{task.title}</span>
                           </div>
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 shrink-0">
                             {task.is_financial && (
                               <span
                                 className={`font-semibold px-2 py-0.5 rounded ${

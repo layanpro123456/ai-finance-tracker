@@ -166,3 +166,24 @@ html.light .bg-blue-500\/10,
 html.light .bg-blue-500\/20 {
   background-color: rgba(59, 130, 246, 0.12) !important;
 }
+
+/* ==========================================================================
+   MOBILE & RESPONSIVE UTILITIES
+   ========================================================================== */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile dialog backdrop blur fix */
+@supports (-webkit-touch-callout: none) {
+  .min-h-screen {
+    min-height: -webkit-fill-available;
+  }
+}
+

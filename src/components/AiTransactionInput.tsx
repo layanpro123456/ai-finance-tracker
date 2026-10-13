@@ -18,7 +18,7 @@ export const AiTransactionInput: React.FC<AiTransactionInputProps> = ({
   categories,
   onTransactionSaved,
 }) => {
-  const { preferences } = usePreferences();
+  const { preferences, formatCurrency } = usePreferences();
   const [prompt, setPrompt] = useState('');
   const [isParsing, setIsParsing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -335,7 +335,7 @@ export const AiTransactionInput: React.FC<AiTransactionInputProps> = ({
                 ) : (
                   accounts.map((acc) => (
                     <option key={acc.id} value={acc.id}>
-                      {acc.name} (${Number(acc.balance).toFixed(2)})
+                      {acc.name} ({formatCurrency(Number(acc.balance))})
                     </option>
                   ))
                 )}

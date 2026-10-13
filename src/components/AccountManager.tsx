@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { Account } from '../types';
 import { supabase } from '../supabaseClient';
 import { usePreferences, CURRENCIES } from '../context/PreferencesContext';
-import { Wallet, Plus, Trash2, AlertCircle, Loader2 } from 'lucide-react';
+import { Wallet, Plus, Trash2, AlertCircle, Loader2, RotateCcw } from 'lucide-react';
 import { CurrencyLogo } from './CurrencyLogo';
 
 interface AccountManagerProps {
@@ -68,9 +68,44 @@ export const AccountManager: React.FC<AccountManagerProps> = ({
     }
   };
 
+  const [isResetting, setIsResetting] = useState(false);
+
+  const handleResetAccounts = async () => {
+    if (
+      !window.confirm(
+        'Reset all financial accounts? This will set all account balances to 0.00 and restore a fresh default Checking Account.'
+      )
+    ) {
+      return;
+    }
+
+    setIsResetting(true);
+    try {
+      // 1. Reset all current accounts to 0.00 balance
+      await supabase.from('accounts').update({ balance: 0 }).eq('user_id', userId);
+
+      // 2. Ensure at least one default Checking Account exists
+      if (accounts.length === 0) {
+        await supabase.from('accounts').insert({
+          user_id: userId,
+          name: 'Checking Account',
+          balance: 0,
+          currency: preferences.currency || 'USD',
+        });
+      }
+
+      onAccountUpdated();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to reset accounts';
+      alert(msg);
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
             <Wallet className="w-5 h-5" />
@@ -80,13 +115,30 @@ export const AccountManager: React.FC<AccountManagerProps> = ({
             <p className="text-xs text-slate-400">Manage checking, savings, credit, and cash accounts</p>
           </div>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="text-xs font-semibold px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center gap-1.5 transition shadow-lg shadow-emerald-500/10 cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>New Account</span>
-        </button>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={handleResetAccounts}
+            disabled={isResetting}
+            title="Reset all account balances to zero and restore default account"
+            className="text-xs font-semibold px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/25 flex items-center gap-1.5 transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          >
+            {isResetting ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <RotateCcw className="w-3.5 h-3.5" />
+            )}
+            <span>Reset Accounts</span>
+          </button>
+
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="text-xs font-semibold px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center gap-1.5 transition shadow-lg shadow-emerald-500/10 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>New Account</span>
+          </button>
+        </div>
       </div>
 
       {accounts.length === 0 ? (
@@ -140,7 +192,7 @@ export const AccountManager: React.FC<AccountManagerProps> = ({
       {/* Add Account Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
+          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
             <h3 className="text-lg font-bold text-white mb-1">Add New Account</h3>
             <p className="text-xs text-slate-400 mb-4">
               Enter account details and starting balance

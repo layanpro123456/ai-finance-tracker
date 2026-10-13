@@ -13,6 +13,7 @@ import {
   Loader2,
   Clock,
   Sparkles,
+  RotateCcw,
 } from 'lucide-react';
 import { CurrencyLogo } from './CurrencyLogo';
 
@@ -159,6 +160,33 @@ export const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({
     }
   };
 
+  const [isResetting, setIsResetting] = useState(false);
+
+  const handleResetSubscriptions = async () => {
+    if (subscriptions.length === 0) {
+      alert('No subscriptions to reset.');
+      return;
+    }
+    if (
+      !window.confirm(
+        `Are you sure you want to reset and delete all ${subscriptions.length} recurring subscriptions? This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    setIsResetting(true);
+    try {
+      const { error } = await supabase.from('subscriptions').delete().eq('user_id', userId);
+      if (error) throw error;
+      onSubscriptionsUpdated();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to reset subscriptions');
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   const handleToggleActive = async (sub: Subscription) => {
     try {
       await supabase
@@ -258,13 +286,29 @@ export const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({
             </p>
           </div>
 
-          <button
-            onClick={() => setIsAdding(!isAdding)}
-            className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 transition cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>{isAdding ? 'Close Form' : 'Add Subscription'}</span>
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleResetSubscriptions}
+              disabled={isResetting || subscriptions.length === 0}
+              title="Reset and clear all recurring subscriptions"
+              className="text-xs font-semibold px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/25 flex items-center gap-1.5 transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {isResetting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <RotateCcw className="w-3.5 h-3.5" />
+              )}
+              <span>Reset Subscriptions</span>
+            </button>
+
+            <button
+              onClick={() => setIsAdding(!isAdding)}
+              className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 transition cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{isAdding ? 'Close Form' : 'Add Subscription'}</span>
+            </button>
+          </div>
         </div>
 
         {error && (

@@ -13,6 +13,7 @@ import {
   Check,
   Loader2,
   X,
+  RotateCcw,
 } from 'lucide-react';
 import { CurrencyLogo } from './CurrencyLogo';
 
@@ -153,6 +154,33 @@ export const ContactsLedgerManager: React.FC<ContactsLedgerManagerProps> = ({
     }
   };
 
+  const [isResetting, setIsResetting] = useState(false);
+
+  const handleResetLedger = async () => {
+    if (contactsLedger.length === 0) {
+      alert('No contacts ledger entries to reset.');
+      return;
+    }
+    if (
+      !window.confirm(
+        `Are you sure you want to reset and delete all ${contactsLedger.length} contact debt and social IOU records? This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    setIsResetting(true);
+    try {
+      const { error } = await supabase.from('contacts_ledger').delete().eq('user_id', userId);
+      if (error) throw error;
+      onLedgerUpdated();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to reset contacts ledger');
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   const activeItems = contactsLedger.filter((item) => !item.is_settled);
   const totalTheyOweMe = activeItems
     .filter((i) => i.type === 'they_owe_me')
@@ -235,13 +263,29 @@ export const ContactsLedgerManager: React.FC<ContactsLedgerManagerProps> = ({
             </p>
           </div>
 
-          <button
-            onClick={() => setIsAdding(!isAdding)}
-            className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 transition cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>{isAdding ? 'Close Form' : 'Record IOU / Split'}</span>
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleResetLedger}
+              disabled={isResetting || contactsLedger.length === 0}
+              title="Reset and clear all contact debts and peer IOUs"
+              className="text-xs font-semibold px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/25 flex items-center gap-1.5 transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {isResetting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <RotateCcw className="w-3.5 h-3.5" />
+              )}
+              <span>Reset Social Ledger</span>
+            </button>
+
+            <button
+              onClick={() => setIsAdding(!isAdding)}
+              className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 transition cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{isAdding ? 'Close Form' : 'Record IOU / Split'}</span>
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -459,7 +503,7 @@ export const ContactsLedgerManager: React.FC<ContactsLedgerManagerProps> = ({
       {/* Settle Debt Modal */}
       {settlingItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl relative">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div className="flex items-center gap-2.5">
                 <CurrencyLogo variant="icon" size="lg" />
@@ -478,7 +522,7 @@ export const ContactsLedgerManager: React.FC<ContactsLedgerManagerProps> = ({
 
             <div className="mt-4 space-y-3">
               <p className="text-sm text-slate-200">
-                Settling <span className="font-bold text-white">${Number(settlingItem.amount).toFixed(2)}</span> with{' '}
+                Settling <span className="font-bold text-white">{formatCurrency(Number(settlingItem.amount))}</span> with{' '}
                 <span className="font-semibold text-white">{settlingItem.contact_name}</span>.
               </p>
 
@@ -495,7 +539,7 @@ export const ContactsLedgerManager: React.FC<ContactsLedgerManagerProps> = ({
                 >
                   {accounts.map((acc) => (
                     <option key={acc.id} value={acc.id}>
-                      {acc.name} (${Number(acc.balance).toFixed(2)})
+                      {acc.name} ({formatCurrency(Number(acc.balance))})
                     </option>
                   ))}
                 </select>

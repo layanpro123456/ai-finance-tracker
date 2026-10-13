@@ -18,6 +18,7 @@ import {
   X,
   Loader2,
   Filter,
+  RotateCcw,
 } from 'lucide-react';
 import { CurrencyLogo } from './CurrencyLogo';
 
@@ -223,6 +224,37 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
     }
   };
 
+  const [isResetting, setIsResetting] = useState(false);
+
+  const handleResetTasks = async () => {
+    if (tasks.length === 0 && noSpendStreak === 0) {
+      alert('No tasks or streak to reset.');
+      return;
+    }
+    if (
+      !window.confirm(
+        `Are you sure you want to reset and delete all ${tasks.length} tasks and reset your daily check-in streak? This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    setIsResetting(true);
+    try {
+      const { error } = await supabase.from('tasks').delete().eq('user_id', userId);
+      if (error) throw error;
+      localStorage.removeItem('apex_no_spend_streak');
+      localStorage.removeItem('apex_marked_today');
+      setNoSpendStreak(0);
+      setMarkedTodayNoSpend(false);
+      onTasksUpdated();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to reset tasks');
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   const filteredTasks = tasks.filter((t) => {
     if (filter === 'completed') return t.status === 'completed';
     if (t.status === 'completed') return false; // don't show completed in active filters
@@ -319,7 +351,21 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleResetTasks}
+              disabled={isResetting || (tasks.length === 0 && noSpendStreak === 0)}
+              title="Reset and clear all tasks and daily check-in streak"
+              className="text-xs font-semibold px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/25 flex items-center gap-1.5 transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {isResetting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <RotateCcw className="w-3.5 h-3.5" />
+              )}
+              <span>Reset Tasks</span>
+            </button>
+
             <button
               onClick={() => setIsAdding(!isAdding)}
               className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 transition cursor-pointer"
@@ -497,7 +543,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                       <option value="">Select Account...</option>
                       {accounts.map((a) => (
                         <option key={a.id} value={a.id}>
-                          {a.name} (${Number(a.balance).toFixed(2)})
+                          {a.name} ({formatCurrency(Number(a.balance))})
                         </option>
                       ))}
                     </select>
@@ -704,7 +750,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
       {/* Financial Settlement Confirmation Modal */}
       {settlingTask && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl relative">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <CurrencyLogo variant="icon" size="lg" />
@@ -730,7 +776,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                 <div className="flex justify-between text-xs">
                   <span className="text-slate-400">Amount:</span>
                   <span className="font-bold text-white">
-                    ${Number(settlingTask.amount).toFixed(2)}
+                    {formatCurrency(Number(settlingTask.amount))}
                   </span>
                 </div>
                 <div className="flex justify-between text-xs">
@@ -752,7 +798,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                 >
                   {accounts.map((acc) => (
                     <option key={acc.id} value={acc.id}>
-                      {acc.name} (${Number(acc.balance).toFixed(2)})
+                      {acc.name} ({formatCurrency(Number(acc.balance))})
                     </option>
                   ))}
                 </select>

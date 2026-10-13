@@ -13,6 +13,7 @@ import {
   Calendar,
   X,
   Loader2,
+  RotateCcw,
 } from 'lucide-react';
 import { CurrencyLogo } from './CurrencyLogo';
 
@@ -119,6 +120,34 @@ export const TransactionList: React.FC<TransactionListProps> = ({
     }
   };
 
+  const [isResetting, setIsResetting] = useState(false);
+
+  const handleResetTransactions = async () => {
+    if (transactions.length === 0) {
+      alert('No transactions to reset.');
+      return;
+    }
+    if (
+      !window.confirm(
+        `Are you sure you want to reset and delete all ${transactions.length} transaction entries? This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    setIsResetting(true);
+    try {
+      const { error } = await supabase.from('transactions').delete().eq('user_id', userId);
+      if (error) throw error;
+      onTransactionsUpdated();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to reset transactions';
+      alert(msg);
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   const { formatCurrency, formatDate } = usePreferences();
 
   return (
@@ -137,21 +166,37 @@ export const TransactionList: React.FC<TransactionListProps> = ({
           </div>
         </div>
 
-        <button
-          onClick={() => {
-            if (accounts.length > 0 && !manualAccountId) {
-              setManualAccountId(accounts[0].id);
-            }
-            if (categories.length > 0 && !manualCategoryId) {
-              setManualCategoryId(categories[0].id);
-            }
-            setShowManualModal(true);
-          }}
-          className="text-xs font-semibold px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1.5 transition cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Manual Entry</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={handleResetTransactions}
+            disabled={isResetting || transactions.length === 0}
+            title="Reset and clear all transaction history records"
+            className="text-xs font-semibold px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/25 flex items-center gap-1.5 transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          >
+            {isResetting ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <RotateCcw className="w-3.5 h-3.5" />
+            )}
+            <span>Reset Transactions</span>
+          </button>
+
+          <button
+            onClick={() => {
+              if (accounts.length > 0 && !manualAccountId) {
+                setManualAccountId(accounts[0].id);
+              }
+              if (categories.length > 0 && !manualCategoryId) {
+                setManualCategoryId(categories[0].id);
+              }
+              setShowManualModal(true);
+            }}
+            className="text-xs font-semibold px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1.5 transition cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Manual Entry</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter and search bar */}
@@ -167,7 +212,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Type Toggle */}
           <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
             <button
@@ -266,7 +311,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+                    <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5 flex-wrap">
                       <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-medium text-[11px]">
                         {categoryName}
                       </span>
@@ -307,7 +352,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
       {/* Manual Entry Modal */}
       {showManualModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
+          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-white">Manual Transaction Entry</h3>
               <button
@@ -380,7 +425,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                 >
                   {accounts.map((a) => (
                     <option key={a.id} value={a.id}>
-                      {a.name} (${Number(a.balance).toFixed(2)})
+                      {a.name} ({formatCurrency(Number(a.balance))})
                     </option>
                   ))}
                 </select>

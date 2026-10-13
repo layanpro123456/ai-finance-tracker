@@ -128,13 +128,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             </nav>
 
             {/* User profile, Theme Toggle, Settings & Sign Out */}
-            <div className="flex items-center gap-2 sm:gap-2.5">
+            <div className="flex items-center gap-1 sm:gap-2.5 flex-shrink-0">
               {/* Light / Dark Mode Toggle */}
               <button
                 onClick={toggleTheme}
                 type="button"
                 title={`Switch to ${preferences.theme === 'dark' ? 'Light' : 'Dark'} mode`}
-                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white border border-slate-700/60 transition cursor-pointer"
+                className="p-1.5 sm:p-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white border border-slate-700/60 transition cursor-pointer"
               >
                 {preferences.theme === 'dark' ? (
                   <Sun className="w-4 h-4 text-amber-400" />
@@ -148,10 +148,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onClick={() => setIsSettingsOpen(true)}
                 type="button"
                 title="Adjust Currency, Country & Timezone"
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white border border-slate-700/60 transition cursor-pointer text-xs font-semibold"
+                className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white border border-slate-700/60 transition cursor-pointer text-xs font-semibold"
               >
                 <Settings className="w-3.5 h-3.5 text-emerald-400" />
-                <span>{preferences.currency}</span>
+                <span className="text-[11px] sm:text-xs">{preferences.currency}</span>
               </button>
 
               {/* Admin Console Quick Button */}
@@ -165,7 +165,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }}
                 type="button"
                 title={isAdmin ? 'Admin Console (Authorized)' : 'Administrator Access'}
-                className={`p-2 rounded-xl border transition cursor-pointer ${
+                className={`p-1.5 sm:p-2 rounded-xl border transition cursor-pointer ${
                   activeTab === 'admin'
                     ? 'bg-purple-600/20 text-purple-300 border-purple-500/50 shadow-sm'
                     : isAdmin
@@ -181,7 +181,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onClick={() => setActiveTab('help')}
                 type="button"
                 title="Step-by-Step Help & Guide"
-                className={`p-2 rounded-xl border transition cursor-pointer ${
+                className={`p-1.5 sm:p-2 rounded-xl border transition cursor-pointer ${
                   activeTab === 'help'
                     ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 shadow-sm'
                     : 'bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white border-slate-700/60'
@@ -199,29 +199,28 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="max-w-[110px] truncate">{getDeviceName()}</span>
               </span>
 
-              <span className="hidden sm:inline-block text-xs font-medium text-slate-400 bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-700/50 max-w-[150px] truncate">
+              <span className="hidden sm:inline-block text-xs font-medium text-slate-400 bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-700/50 max-w-[140px] truncate">
                 {userEmail}
               </span>
 
               <button
                 onClick={onSignOut}
                 title="Sign Out"
-                className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-rose-500/10 text-slate-400 hover:text-rose-400 border border-slate-700 hover:border-rose-500/30 transition cursor-pointer"
+                className="flex items-center gap-1.5 text-xs font-semibold px-2 sm:px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-rose-500/10 text-slate-400 hover:text-rose-400 border border-slate-700 hover:border-rose-500/30 transition cursor-pointer"
               >
                 <LogOut className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Logout</span>
               </button>
-
             </div>
           </div>
 
           {/* Medium-screen Secondary Horizontal Scroll Bar */}
-          <div className="hidden md:flex xl:hidden overflow-x-auto py-2 border-t border-slate-850 gap-1.5 no-scrollbar">
+          <div className="hidden md:flex xl:hidden overflow-x-auto py-2 border-t border-slate-800 gap-1.5 no-scrollbar flex-nowrap">
             {navItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap shrink-0 transition cursor-pointer ${
                   activeTab === item.id
                     ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                     : 'text-slate-400 hover:text-white bg-slate-800/40'
@@ -229,29 +228,36 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 {item.icon}
                 <span>{item.label}</span>
+                {item.badge && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-0.5" />
+                )}
               </button>
             ))}
           </div>
         </div>
 
         {/* Mobile nav scrollable bar */}
-        <div className="md:hidden flex items-center overflow-x-auto border-t border-slate-800/80 py-2 bg-slate-900 px-3 gap-2 no-scrollbar">
+        <div className="md:hidden flex items-center overflow-x-auto border-t border-slate-800/80 py-2 bg-slate-900 px-3 gap-1.5 no-scrollbar flex-nowrap">
           {navItems.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`flex items-center gap-1 text-xs py-1.5 px-2.5 rounded-lg whitespace-nowrap ${
+              className={`flex items-center gap-1.5 text-xs py-1.5 px-3 rounded-xl whitespace-nowrap shrink-0 transition ${
                 activeTab === item.id
-                  ? 'bg-emerald-500/20 text-emerald-400 font-semibold border border-emerald-500/30'
-                  : 'text-slate-400 bg-slate-800/40'
+                  ? 'bg-emerald-500/20 text-emerald-400 font-semibold border border-emerald-500/30 shadow-sm'
+                  : 'text-slate-400 bg-slate-800/50 border border-slate-800 hover:text-slate-200'
               }`}
             >
               {item.icon}
               <span>{item.label}</span>
+              {item.badge && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-0.5" />
+              )}
             </button>
           ))}
         </div>
       </header>
+
 
       {/* Settings Modal */}
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />

@@ -126,7 +126,7 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
           <div className="text-xs text-slate-500 mt-1 flex items-center justify-between">
             <span>{currentMonthTransactions.filter((t) => t.type === 'expense').length} expense events</span>
             {pendingBills > 0 && (
-              <span className="text-amber-400 text-[10px]">(${pendingBills.toFixed(0)} bills pending)</span>
+              <span className="text-amber-400 text-[10px]">({formatCurrency(pendingBills)} bills pending)</span>
             )}
           </div>
         </div>
