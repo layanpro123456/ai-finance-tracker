@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import type { ErpTab } from './Navbar';
+import { usePreferences } from '../context/PreferencesContext';
 import {
   HelpCircle,
   BookOpen,
@@ -96,6 +97,8 @@ const SECTIONS: { id: GuideSection; label: string; icon: React.ReactNode; desc: 
 ];
 
 export const HelpGuide: React.FC<HelpGuideProps> = ({ onNavigateTab }) => {
+  const { preferences } = usePreferences();
+  const cs = preferences.currencySymbol || '$';
   const [activeSection, setActiveSection] = useState<GuideSection>('quickstart');
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedText, setCopiedText] = useState<string | null>(null);
@@ -275,7 +278,7 @@ export const HelpGuide: React.FC<HelpGuideProps> = ({ onNavigateTab }) => {
                 </p>
                 <ul className="text-xs text-slate-400 space-y-1.5 list-disc list-inside">
                   <li>
-                    Click the <strong>Currency pill</strong> (e.g. <span className="text-emerald-400 font-mono font-medium">$ USD</span> or <span className="text-emerald-400 font-mono font-medium">Rs LKR</span>) to select from 40+ global currencies (including LKR, USD, EUR, GBP, INR), pick your country, and set your timezone.
+                    Click the <strong>Currency pill</strong> (e.g. <span className="text-emerald-400 font-mono font-medium">{cs} {preferences.currency}</span>) to select from 40+ global currencies (including LKR, USD, EUR, GBP, INR), pick your country, and set your timezone.
                   </li>
                   <li>
                     Click the <strong>Sun / Moon icon</strong> to toggle between modern Dark mode and clean Light mode at any time.
@@ -301,7 +304,7 @@ export const HelpGuide: React.FC<HelpGuideProps> = ({ onNavigateTab }) => {
                   </button>
                 </div>
                 <p className="text-xs text-slate-300 leading-relaxed">
-                  On the <strong>Overview</strong> screen, use the AI logger bar to type a purchase in plain words (e.g. <em className="text-slate-200">&ldquo;Spent $14 on lunch at Chipotle&rdquo;</em>). The system automatically selects the category, deducts your balance, and updates your monthly budget!
+                  On the <strong>Overview</strong> screen, use the AI logger bar to type a purchase in plain words (e.g. <em className="text-slate-200">&ldquo;Spent {cs}14 on lunch at Chipotle&rdquo;</em>). The system automatically selects the category, deducts your balance, and updates your monthly budget!
                 </p>
               </div>
             </div>
@@ -401,13 +404,13 @@ export const HelpGuide: React.FC<HelpGuideProps> = ({ onNavigateTab }) => {
                     <div className="p-3.5 bg-slate-900 rounded-xl border border-slate-850 space-y-1">
                       <span className="text-xs font-bold text-rose-400 block">Payable (Bill to Pay)</span>
                       <p className="text-xs text-slate-400">
-                        e.g., &ldquo;Pay Electricity Bill ($85)&rdquo;. When you check this task off, a 1-click prompt appears: <em>&ldquo;Deduct $85 from Checking Account?&rdquo;</em> It instantly logs the expense and lowers your account balance!
+                        e.g., &ldquo;Pay Electricity Bill ({cs}85)&rdquo;. When you check this task off, a 1-click prompt appears: <em>&ldquo;Deduct {cs}85 from Checking Account?&rdquo;</em> It instantly logs the expense and lowers your account balance!
                       </p>
                     </div>
                     <div className="p-3.5 bg-slate-900 rounded-xl border border-slate-850 space-y-1">
                       <span className="text-xs font-bold text-emerald-400 block">Receivable (Income Expected)</span>
                       <p className="text-xs text-slate-400">
-                        e.g., &ldquo;Deliver Freelance Project Milestone ($500)&rdquo;. Completing the task prompts you to record the deposit directly into your bank account.
+                        e.g., &ldquo;Deliver Freelance Project Milestone ({cs}500)&rdquo;. Completing the task prompts you to record the deposit directly into your bank account.
                       </p>
                     </div>
                   </div>
@@ -473,7 +476,7 @@ export const HelpGuide: React.FC<HelpGuideProps> = ({ onNavigateTab }) => {
               </div>
 
               <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-xs text-slate-400">
-                <strong className="text-white">Pro-Tip:</strong> When logging a large purchase via the AI Assistant (e.g. <em className="text-slate-300">&ldquo;Bought $1,200 Laptop&rdquo;</em>), check the <strong>&ldquo;Also register as Personal Asset&rdquo;</strong> box to add it to your Asset Vault and ledger in one step!
+                <strong className="text-white">Pro-Tip:</strong> When logging a large purchase via the AI Assistant (e.g. <em className="text-slate-300">&ldquo;Bought {cs}1,200 Laptop&rdquo;</em>), check the <strong>&ldquo;Also register as Personal Asset&rdquo;</strong> box to add it to your Asset Vault and ledger in one step!
               </div>
 
               <button
@@ -591,12 +594,12 @@ export const HelpGuide: React.FC<HelpGuideProps> = ({ onNavigateTab }) => {
                 </p>
 
                 {[
-                  { prompt: 'Spent $14.50 on lunch at Chipotle today', tag: 'Dining Out Expense' },
-                  { prompt: 'Paid $82 for groceries at Trader Joe’s', tag: 'Groceries Expense' },
-                  { prompt: 'Bought $1,200 Sony Mirrorless Camera on credit card', tag: 'Expense + Asset Registration' },
-                  { prompt: 'Received $3,200 monthly salary deposit', tag: 'Income Deposit' },
-                  { prompt: 'Paid $65 for car oil change yesterday', tag: 'Transportation Expense' },
-                  { prompt: 'Lent $45 to Sarah for dinner bill', tag: 'Social IOU' },
+                  { prompt: `Spent ${cs}14.50 on lunch at Chipotle today`, tag: 'Dining Out Expense' },
+                  { prompt: `Paid ${cs}82 for groceries at Trader Joe’s`, tag: 'Groceries Expense' },
+                  { prompt: `Bought ${cs}1,200 Sony Mirrorless Camera on credit card`, tag: 'Expense + Asset Registration' },
+                  { prompt: `Received ${cs}3,200 monthly salary deposit`, tag: 'Income Deposit' },
+                  { prompt: `Paid ${cs}65 for car oil change yesterday`, tag: 'Transportation Expense' },
+                  { prompt: `Lent ${cs}45 to Sarah for dinner bill`, tag: 'Social IOU' },
                 ].map((item, idx) => (
                   <div
                     key={idx}

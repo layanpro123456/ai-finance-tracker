@@ -8,7 +8,6 @@ import {
   ShieldAlert,
   ShieldCheck,
   Calendar,
-  DollarSign,
   TrendingUp,
   TrendingDown,
   Trash2,
@@ -21,6 +20,7 @@ import {
   Gem,
   HelpCircle,
 } from 'lucide-react';
+import { CurrencyLogo } from './CurrencyLogo';
 
 interface AssetManagerProps {
   userId: string;
@@ -171,8 +171,8 @@ export const AssetManager: React.FC<AssetManagerProps> = ({
               {activeAssets.length} active registered items
             </p>
           </div>
-          <div className="p-3 bg-slate-800 border border-slate-700 text-slate-300 rounded-xl">
-            <DollarSign className="w-5 h-5" />
+          <div className="p-2.5 bg-slate-800 border border-slate-700 text-emerald-400 rounded-xl flex items-center justify-center">
+            <CurrencyLogo variant="icon" size="lg" />
           </div>
         </div>
 
@@ -278,32 +278,40 @@ export const AssetManager: React.FC<AssetManagerProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                  Purchase Price ($)
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <span>Purchase Price</span>
+                  <CurrencyLogo variant="badge" />
                 </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  placeholder="0.00"
-                  value={purchasePrice || ''}
-                  onChange={(e) => setPurchasePrice(parseFloat(e.target.value) || 0)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                />
+                <div className="relative">
+                  <CurrencyLogo variant="input-prefix" />
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder="0.00"
+                    value={purchasePrice || ''}
+                    onChange={(e) => setPurchasePrice(parseFloat(e.target.value) || 0)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-8 pr-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                  Current Estimated Value ($)
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <span>Current Estimated Value</span>
+                  <CurrencyLogo variant="badge" />
                 </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  placeholder="Defaults to purchase price"
-                  value={currentValue || ''}
-                  onChange={(e) => setCurrentValue(parseFloat(e.target.value) || 0)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                />
+                <div className="relative">
+                  <CurrencyLogo variant="input-prefix" />
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="Defaults to purchase price"
+                    value={currentValue || ''}
+                    onChange={(e) => setCurrentValue(parseFloat(e.target.value) || 0)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-8 pr-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
               </div>
 
               <div>

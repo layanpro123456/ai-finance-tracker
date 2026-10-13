@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import type { Budget, Category, Transaction } from '../types';
 import { supabase } from '../supabaseClient';
 import { usePreferences } from '../context/PreferencesContext';
+import { CurrencyLogo } from './CurrencyLogo';
 import { PieChart, Plus, AlertTriangle, CheckCircle2, X, Loader2 } from 'lucide-react';
 
 interface BudgetManagerProps {
@@ -230,17 +231,21 @@ export const BudgetManager: React.FC<BudgetManagerProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
-                  Monthly Limit ($)
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1.5">
+                  <span>Monthly Limit</span>
+                  <CurrencyLogo variant="badge" />
                 </label>
-                <input
-                  type="number"
-                  step="10"
-                  required
-                  value={monthlyLimit}
-                  onChange={(e) => setMonthlyLimit(parseFloat(e.target.value) || 0)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-                />
+                <div className="relative">
+                  <CurrencyLogo variant="input-prefix" />
+                  <input
+                    type="number"
+                    step="10"
+                    required
+                    value={monthlyLimit}
+                    onChange={(e) => setMonthlyLimit(parseFloat(e.target.value) || 0)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-8 pr-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  />
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3">

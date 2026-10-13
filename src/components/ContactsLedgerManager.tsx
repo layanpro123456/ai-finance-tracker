@@ -12,9 +12,9 @@ import {
   Trash2,
   Check,
   Loader2,
-  DollarSign,
   X,
 } from 'lucide-react';
+import { CurrencyLogo } from './CurrencyLogo';
 
 interface ContactsLedgerManagerProps {
   userId: string;
@@ -284,18 +284,23 @@ export const ContactsLedgerManager: React.FC<ContactsLedgerManagerProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                  Amount ($) *
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <span>Amount</span>
+                  <CurrencyLogo variant="badge" />
+                  <span className="text-rose-400">*</span>
                 </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  placeholder="0.00"
-                  value={amount || ''}
-                  onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                />
+                <div className="relative">
+                  <CurrencyLogo variant="input-prefix" />
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder="0.00"
+                    value={amount || ''}
+                    onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-8 pr-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
               </div>
 
               <div>
@@ -456,10 +461,8 @@ export const ContactsLedgerManager: React.FC<ContactsLedgerManagerProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <span className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  <DollarSign className="w-5 h-5" />
-                </span>
+              <div className="flex items-center gap-2.5">
+                <CurrencyLogo variant="icon" size="lg" />
                 <div>
                   <h3 className="text-sm font-bold text-white">Settle Social Balance</h3>
                   <p className="text-xs text-slate-400">{settlingItem.contact_name}</p>

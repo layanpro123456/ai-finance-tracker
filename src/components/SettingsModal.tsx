@@ -9,7 +9,6 @@ import {
   X,
   Settings,
   Globe,
-  DollarSign,
   Clock,
   Sun,
   Moon,
@@ -17,6 +16,7 @@ import {
   RotateCcw,
   Sparkles,
 } from 'lucide-react';
+import { CurrencyLogo } from './CurrencyLogo';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -142,7 +142,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+                <CurrencyLogo variant="icon" size="xs" />
                 <span>Primary Currency</span>
               </label>
               <span className="text-[11px] text-emerald-400 font-medium">

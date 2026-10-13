@@ -3,6 +3,7 @@ import type { Account } from '../types';
 import { supabase } from '../supabaseClient';
 import { usePreferences, CURRENCIES } from '../context/PreferencesContext';
 import { Wallet, Plus, Trash2, AlertCircle, Loader2 } from 'lucide-react';
+import { CurrencyLogo } from './CurrencyLogo';
 
 interface AccountManagerProps {
   userId: string;
@@ -168,17 +169,23 @@ export const AccountManager: React.FC<AccountManagerProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-                  Initial Balance
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  value={balance}
-                  onChange={(e) => setBalance(parseFloat(e.target.value) || 0)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-                />
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Initial Balance
+                  </label>
+                  <CurrencyLogo variant="badge" />
+                </div>
+                <div className="relative">
+                  <CurrencyLogo variant="input-prefix" />
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={balance}
+                    onChange={(e) => setBalance(parseFloat(e.target.value) || 0)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-8 pr-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  />
+                </div>
               </div>
 
               <div>

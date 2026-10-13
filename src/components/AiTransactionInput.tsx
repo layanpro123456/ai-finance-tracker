@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import type { Account, Category } from '../types';
 import { parseTransaction, supabase, type ParsedTransaction } from '../supabaseClient';
+import { usePreferences } from '../context/PreferencesContext';
+import { CurrencyLogo } from './CurrencyLogo';
 import { Sparkles, ArrowRight, Check, X, AlertCircle, Loader2 } from 'lucide-react';
 
 interface AiTransactionInputProps {
@@ -16,6 +18,7 @@ export const AiTransactionInput: React.FC<AiTransactionInputProps> = ({
   categories,
   onTransactionSaved,
 }) => {
+  const { preferences } = usePreferences();
   const [prompt, setPrompt] = useState('');
   const [isParsing, setIsParsing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -35,11 +38,11 @@ export const AiTransactionInput: React.FC<AiTransactionInputProps> = ({
   const [alsoCreateTask, setAlsoCreateTask] = useState(false);
 
   const samplePrompts = [
-    'Spent $14.50 on lunch at Chipotle today',
-    'Paid $82 for groceries at Trader Joe’s',
-    'Bought $1,200 Sony Mirrorless Camera on credit card',
-    'Received $3,200 monthly salary',
-    'Paid $65 for car oil change',
+    `Spent ${preferences.currencySymbol}14.50 on lunch at Chipotle today`,
+    `Paid ${preferences.currencySymbol}82 for groceries at supermarket`,
+    `Bought ${preferences.currencySymbol}1,200 Mirrorless Camera on credit card`,
+    `Received ${preferences.currencySymbol}3,200 monthly salary deposit`,
+    `Paid ${preferences.currencySymbol}65 for car maintenance`,
   ];
 
   const handleParse = async (inputPrompt?: string) => {
@@ -179,7 +182,7 @@ export const AiTransactionInput: React.FC<AiTransactionInputProps> = ({
         <div>
           <h2 className="text-lg font-bold text-white tracking-tight">AI Natural Language Logger</h2>
           <p className="text-xs text-slate-400">
-            Type anything like &ldquo;Spent $14.50 on lunch at Chipotle today&rdquo;
+            Type anything like &ldquo;Spent {preferences.currencySymbol}14.50 on lunch at Chipotle today&rdquo;
           </p>
         </div>
       </div>
@@ -191,7 +194,7 @@ export const AiTransactionInput: React.FC<AiTransactionInputProps> = ({
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleParse()}
-          placeholder="e.g. Paid $65 for groceries at Trader Joe's or Spent $14.50 on lunch at Chipotle..."
+          placeholder={`e.g. Paid ${preferences.currencySymbol}65 for groceries or Spent ${preferences.currencySymbol}14.50 on lunch...`}
           className="flex-1 bg-slate-950 border border-slate-850 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition"
         />
         <button
@@ -271,16 +274,20 @@ export const AiTransactionInput: React.FC<AiTransactionInputProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
-                Amount ($)
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1.5">
+                <span>Amount</span>
+                <CurrencyLogo variant="badge" />
               </label>
-              <input
-                type="number"
-                step="0.01"
-                value={editedAmount}
-                onChange={(e) => setEditedAmount(parseFloat(e.target.value) || 0)}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              />
+              <div className="relative">
+                <CurrencyLogo variant="input-prefix" />
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editedAmount}
+                  onChange={(e) => setEditedAmount(parseFloat(e.target.value) || 0)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-8 pr-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
             </div>
 
             <div>

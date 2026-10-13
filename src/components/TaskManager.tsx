@@ -7,7 +7,6 @@ import {
   Circle,
   Plus,
   Calendar,
-  DollarSign,
   AlertCircle,
   Clock,
   Trash2,
@@ -20,6 +19,7 @@ import {
   Loader2,
   Filter,
 } from 'lucide-react';
+import { CurrencyLogo } from './CurrencyLogo';
 
 interface TaskManagerProps {
   userId: string;
@@ -36,7 +36,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
   categories,
   onTasksUpdated,
 }) => {
-  const { formatCurrency, formatDate } = usePreferences();
+  const { preferences, formatCurrency, formatDate } = usePreferences();
   const [filter, setFilter] = useState<'all' | 'financial' | 'personal' | 'completed'>('all');
   const [isAdding, setIsAdding] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -348,7 +348,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Pay WiFi Bill ($60), Review Tax Receipts, Client Landing Page Milestone"
+                  placeholder={`e.g. Pay WiFi Bill (${preferences.currencySymbol}60), Review Tax Receipts, Client Landing Page Milestone`}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
@@ -426,7 +426,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                   className="w-4 h-4 rounded border-slate-700 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
                 />
                 <label htmlFor="isFinancialCheckbox" className="text-xs font-semibold text-emerald-400 cursor-pointer flex items-center gap-1.5">
-                  <DollarSign className="w-3.5 h-3.5" />
+                  <CurrencyLogo variant="icon" size="xs" />
                   <span>Link this task to Financial Ledger (Bill, Receivable, or Budget)</span>
                 </label>
               </div>
@@ -449,18 +449,22 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                      Amount ($)
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                      <span>Amount</span>
+                      <CurrencyLogo variant="badge" />
                     </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      required={isFinancial}
-                      placeholder="0.00"
-                      value={amount || ''}
-                      onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
-                    />
+                    <div className="relative">
+                      <CurrencyLogo variant="input-prefix" />
+                      <input
+                        type="number"
+                        step="0.01"
+                        required={isFinancial}
+                        placeholder="0.00"
+                        value={amount || ''}
+                        onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
+                        className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-8 pr-3 py-2 text-sm text-white"
+                      />
+                    </div>
                   </div>
 
                   <div>
@@ -637,7 +641,11 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                                 : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
                             }`}
                           >
-                            <DollarSign className="w-3 h-3" />
+                            {task.financial_type === 'receivable' ? (
+                              <ArrowUpRight className="w-3 h-3" />
+                            ) : (
+                              <ArrowDownLeft className="w-3 h-3" />
+                            )}
                             {task.financial_type === 'receivable' ? '+' : '-'}
                             {formatCurrency(Number(task.amount))}
                           </span>
@@ -699,9 +707,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
           <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div className="flex items-center gap-2">
-                <span className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  <DollarSign className="w-5 h-5" />
-                </span>
+                <CurrencyLogo variant="icon" size="lg" />
                 <div>
                   <h3 className="text-sm font-bold text-white">Financial Settlement</h3>
                   <p className="text-xs text-slate-400">Task marked as complete</p>

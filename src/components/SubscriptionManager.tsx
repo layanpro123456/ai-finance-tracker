@@ -14,6 +14,7 @@ import {
   Clock,
   Sparkles,
 } from 'lucide-react';
+import { CurrencyLogo } from './CurrencyLogo';
 
 interface SubscriptionManagerProps {
   userId: string;
@@ -292,18 +293,23 @@ export const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                  Cost ($) *
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <span>Cost</span>
+                  <CurrencyLogo variant="badge" />
+                  <span className="text-rose-400">*</span>
                 </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  placeholder="14.99"
-                  value={cost || ''}
-                  onChange={(e) => setCost(parseFloat(e.target.value) || 0)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                />
+                <div className="relative">
+                  <CurrencyLogo variant="input-prefix" />
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder="14.99"
+                    value={cost || ''}
+                    onChange={(e) => setCost(parseFloat(e.target.value) || 0)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-8 pr-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
               </div>
 
               <div>
