@@ -16,6 +16,7 @@ import {
   Moon,
   Settings,
   HelpCircle,
+  Shield,
 } from 'lucide-react';
 
 export type ErpTab =
@@ -27,13 +28,16 @@ export type ErpTab =
   | 'assets'
   | 'subscriptions'
   | 'contacts'
-  | 'help';
+  | 'help'
+  | 'admin';
 
 interface NavbarProps {
   userEmail: string;
   activeTab: ErpTab;
   setActiveTab: (tab: ErpTab) => void;
   onSignOut: () => void;
+  isAdmin?: boolean;
+  onOpenAdminAuth?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -41,11 +45,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   setActiveTab,
   onSignOut,
+  isAdmin = false,
+  onOpenAdminAuth,
 }) => {
   const { preferences, toggleTheme } = usePreferences();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  const navItems: { id: ErpTab; label: string; icon: React.ReactNode }[] = [
+  const baseNavItems: { id: ErpTab; label: string; icon: React.ReactNode }[] = [
     { id: 'dashboard', label: 'Overview', icon: <LayoutDashboard className="w-4 h-4" /> },
     { id: 'tasks', label: 'Daily Tasks', icon: <CheckSquare className="w-4 h-4" /> },
     { id: 'transactions', label: 'Ledger', icon: <Receipt className="w-4 h-4" /> },
@@ -56,6 +62,10 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'contacts', label: 'Social IOU', icon: <Users className="w-4 h-4" /> },
     { id: 'help', label: 'Help & Guide', icon: <HelpCircle className="w-4 h-4" /> },
   ];
+
+  const navItems = isAdmin
+    ? [...baseNavItems, { id: 'admin' as ErpTab, label: 'Admin', icon: <Shield className="w-4 h-4 text-purple-400" /> }]
+    : baseNavItems;
 
   return (
     <>
@@ -124,6 +134,28 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <Settings className="w-3.5 h-3.5 text-emerald-400" />
                 <span>{preferences.currency}</span>
+              </button>
+
+              {/* Admin Console Quick Button */}
+              <button
+                onClick={() => {
+                  if (isAdmin) {
+                    setActiveTab('admin');
+                  } else if (onOpenAdminAuth) {
+                    onOpenAdminAuth();
+                  }
+                }}
+                type="button"
+                title={isAdmin ? 'Admin Console (Authorized)' : 'Administrator Access'}
+                className={`p-2 rounded-xl border transition cursor-pointer ${
+                  activeTab === 'admin'
+                    ? 'bg-purple-600/20 text-purple-300 border-purple-500/50 shadow-sm'
+                    : isAdmin
+                    ? 'bg-purple-950/40 text-purple-400 hover:text-purple-300 border-purple-500/30'
+                    : 'bg-slate-800 hover:bg-slate-750 text-slate-400 hover:text-purple-300 border-slate-700/60'
+                }`}
+              >
+                <Shield className="w-4 h-4" />
               </button>
 
               {/* Help & Guide Quick Button */}

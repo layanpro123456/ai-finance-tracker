@@ -22,6 +22,9 @@ import { AssetManager } from './components/AssetManager';
 import { SubscriptionManager } from './components/SubscriptionManager';
 import { ContactsLedgerManager } from './components/ContactsLedgerManager';
 import { HelpGuide } from './components/HelpGuide';
+import { AdminPortal } from './components/AdminPortal';
+import { AdminAuthModal } from './components/AdminAuthModal';
+import { isUserAdminSession, logPlatformEvent } from './services/adminTelemetry';
 import { usePreferences } from './context/PreferencesContext';
 import {
   Loader2,
@@ -38,6 +41,8 @@ export function App() {
   const [dataLoading, setDataLoading] = useState(false);
 
   const [activeTab, setActiveTab] = useState<ErpTab>('dashboard');
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => isUserAdminSession());
+  const [isAdminAuthModalOpen, setIsAdminAuthModalOpen] = useState(false);
 
   // Core Financial State
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -54,14 +59,27 @@ export function App() {
   // 1. Check auth status on load
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      if (currentUser) {
+        if (currentUser.email?.toLowerCase().includes('admin') || isUserAdminSession()) {
+          setIsAdmin(true);
+        }
+        logPlatformEvent('AUTH', 'User session active on Apex LifeOS', currentUser.id, currentUser.email || undefined);
+      }
       setAuthChecking(false);
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      if (currentUser) {
+        if (currentUser.email?.toLowerCase().includes('admin') || isUserAdminSession()) {
+          setIsAdmin(true);
+        }
+      }
       setAuthChecking(false);
     });
 
@@ -215,6 +233,8 @@ export function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onSignOut={handleSignOut}
+        isAdmin={isAdmin}
+        onOpenAdminAuth={() => setIsAdminAuthModalOpen(true)}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
@@ -526,7 +546,37 @@ export function App() {
         {activeTab === 'help' && (
           <HelpGuide onNavigateTab={setActiveTab} />
         )}
+
+        {/* ========================================================================= */}
+        {/* EXECUTIVE ADMIN CONSOLE TAB */}
+        {/* ========================================================================= */}
+        {activeTab === 'admin' && (
+          <AdminPortal
+            currentUserId={user.id}
+            currentUserEmail={user.email || undefined}
+            userStats={{
+              transactionsCount: transactions.length,
+              accountsCount: accounts.length,
+              tasksCount: tasks.length,
+              subsCount: subscriptions.length,
+            }}
+            onLockSession={() => {
+              setIsAdmin(false);
+              setActiveTab('dashboard');
+            }}
+          />
+        )}
       </main>
+
+      {/* Admin Passkey Verification Modal */}
+      <AdminAuthModal
+        isOpen={isAdminAuthModalOpen}
+        onClose={() => setIsAdminAuthModalOpen(false)}
+        onAuthorized={() => {
+          setIsAdmin(true);
+          setActiveTab('admin');
+        }}
+      />
     </div>
   );
 }

@@ -129,3 +129,39 @@ export interface ContactsLedger {
   settled_transaction_id?: string | null;
   created_at?: string;
 }
+
+export interface PlatformUserSummary {
+  id: string;
+  email: string;
+  maskedId: string;
+  role: 'admin' | 'user';
+  status: 'active' | 'inactive';
+  joinedDate: string;
+  lastActive: string;
+  totalTransactions: number;
+  totalAccounts: number;
+  totalTasks: number;
+  totalSubscriptions: number;
+  aiUsageRate: number; // percentage
+}
+
+export type ActivityEventType =
+  | 'AUTH'
+  | 'TRANSACTION'
+  | 'BUDGET'
+  | 'TASK'
+  | 'ASSET'
+  | 'SUBSCRIPTION'
+  | 'SOCIAL_IOU'
+  | 'SECURITY';
+
+export interface PlatformActivityLog {
+  id: string;
+  timestamp: string;
+  type: ActivityEventType;
+  userId: string;
+  userEmailMasked: string;
+  action: string;
+  platform: string;
+  status: 'success' | 'warning' | 'info';
+}
