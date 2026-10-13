@@ -86,15 +86,33 @@ Traditional personal finance apps only track what you spent *after* you've alrea
 * High-contrast OLED **Dark Mode** and clean **Light Mode**.
 * Adjustable primary currency, home country, and local timezone.
 
-### 10. 🔒 Hardware-Bound Location Uniqueness & Single-Device Lock *(NEW)*
+### 10. 🔒 Hardware-Bound Location Uniqueness & Single-Device Lock
 * **Hardware-Partitioned Location Data**: GPS fixes, velocity timeline events, and transit statistics are strictly partitioned by unique physical `device_id`, preventing GPS crosstalk or route contamination across devices.
 * **1 Active Device Enforcement**: Users cannot be actively logged in from multiple devices simultaneously. Attempting to log in on a second device displays an active session transfer prompt. Logging in on a new device terminates the previous device session.
 * **Continuous Heartbeat Sentinel**: Background heartbeat monitors session ownership; if a remote device claims the account, the local device is immediately logged out safely.
 
+### 11. 🔄 Independent Module-by-Module Reset Controls *(NEW)*
+* Each subsystem possesses its own dedicated **Reset Button** directly inside its header toolbar:
+  * **Reset Transactions**: Deletes all recorded transactions and resets ledger history.
+  * **Reset Accounts**: Resets all balances to zero and restores a clean default Checking Account.
+  * **Reset Budgets**: Clears all monthly category limits for the active period.
+  * **Reset Tasks**: Clears to-dos/bills and resets your daily no-spend check-in streak.
+  * **Reset Timeline**: Clears recorded transit trips, timeline events, and resets device telemetry.
+  * **Reset Assets**: Clears all registered fixed assets and warranty logs in the vault.
+  * **Reset Subscriptions**: Clears all recurring subscription monitors and burn calculations.
+  * **Reset Social Ledger**: Clears all peer debts, splits, and informal IOUs.
+  * **Reset Preferences**: Restores system theme, base currency, and timezone defaults.
+* **Accidental Click Protection**: Every reset button is gated with a clear confirmation dialog and active spinning indicator during execution.
+
+### 12. 📱 Responsive Mobile, Tablet & Touch Engineering *(NEW)*
+* **Mobile Chapter Navigator**: Help Guide features a horizontal swipeable pill bar on mobile/tablet viewports (`no-scrollbar` with momentum touch scrolling), preserving screen real estate before transitioning to a sticky sidebar on desktop.
+* **Universal Soft-Keyboard Overflow Defense**: All 10 modals implement `max-h-[90vh] overflow-y-auto` to prevent buttons from being pushed off screen when virtual keyboards open on iOS and Android.
+* **Compact Header Layout**: Mobile navigation buttons dynamically scale down (`gap-1 sm:gap-2.5`, `p-1.5 sm:p-2`) to avoid multi-row wrapping on 360px–375px screens.
+* **Custom Kinetic Favicon**: High-resolution SVG favicon featuring the Apex summit chevron and telemetry diamond in glowing emerald and cyber teal.
+
 ---
 
 ## 🛠️ Architecture & Tech Stack
-
 
 ```text
        [ User Browser / PWA Mobile View ]
@@ -110,13 +128,15 @@ Traditional personal finance apps only track what you spent *after* you've alrea
   • tasks         • daily_mobility       [ Google Gemini AI ]
   • assets        • subscriptions
   • budgets       • contacts_ledger
+  • device_sessions
 ```
 
 | Component | Technology | Role |
 | :--- | :--- | :--- |
 | **Frontend** | React 18, TypeScript, Tailwind CSS, Lucide Icons | Responsive SPA & PWA UI |
-| **State & Context** | React Context (`PreferencesContext`) | Theme, Currency, Timezone state |
-| **Geolocation Engine** | HTML5 Geolocation API + Haversine Formula | Speed tracking & Geofencing |
+| **State & Context** | React Context (`PreferencesContext`) | Theme, Dynamic Currency, Timezone state |
+| **Device Sentinel** | Web Crypto UUID + Hardware Heartbeat Sentinel | 1-Active-Device lock & location isolation |
+| **Geolocation Engine** | HTML5 Geolocation API + Haversine Formula | Speed tracking, traffic classifier & Geofencing |
 | **Database & Auth** | Supabase (PostgreSQL, GoTrue, RLS) | Secure multi-tenant cloud storage |
 | **AI Parsing** | Supabase Edge Function + Gemini Flash | Natural language expense parsing |
 
@@ -126,28 +146,35 @@ Traditional personal finance apps only track what you spent *after* you've alrea
 
 ```text
 ai-finance-tracker/
+├── public/
+│   ├── favicon.svg                  # Custom Apex LifeOS SVG luxury fintech favicon
+│   └── poster.html                  # Marketing poster and feature showcase
 ├── src/
 │   ├── components/
-│   │   ├── AccountManager.tsx           # Multi-account balance sheets
+│   │   ├── AccountManager.tsx           # Multi-account balance sheets & reset
+│   │   ├── AdminAuthModal.tsx           # Master passkey admin authorization modal
+│   │   ├── AdminPortal.tsx              # Platform user telemetry & audit logs
 │   │   ├── AiTransactionInput.tsx       # Natural language expense logger
-│   │   ├── AssetManager.tsx             # Asset inventory & warranty vault
-│   │   ├── BudgetManager.tsx            # Category limits & progress
-│   │   ├── ContactsLedgerManager.tsx    # Peer-to-peer IOU tracker
+│   │   ├── AssetManager.tsx             # Asset inventory, warranty vault & reset
+│   │   ├── AuthModal.tsx                # Single-device session login & registration
+│   │   ├── BudgetManager.tsx            # Category limits, progress & reset
+│   │   ├── ContactsLedgerManager.tsx    # Peer-to-peer IOU tracker & reset
 │   │   ├── CurrencyLogo.tsx             # Dynamic multi-currency badge & prefix
 │   │   ├── HelpGuide.tsx                # User-facing step-by-step documentation
-│   │   ├── LocationTimelineManager.tsx  # Telemetry, commute stats & simulator
+│   │   ├── LocationTimelineManager.tsx  # Telemetry, commute stats, simulator & reset
 │   │   ├── MetricCards.tsx              # Executive Net Worth & burn rate cards
 │   │   ├── Navbar.tsx                   # Top navigation with alert badges
 │   │   ├── ProximityAlertBanner.tsx     # Global geofence payment alert banner
-│   │   ├── SettingsModal.tsx            # Theme, currency, and timezone modal
-│   │   ├── SubscriptionManager.tsx      # Recurring billing & cancellation links
-│   │   ├── TaskManager.tsx              # Operations & financial task bridge
-│   │   └── TransactionList.tsx          # Filterable ledger transactions
+│   │   ├── SettingsModal.tsx            # Theme, currency, timezone modal & reset
+│   │   ├── SubscriptionManager.tsx      # Recurring billing, cancellation links & reset
+│   │   ├── TaskManager.tsx              # Operations, financial task bridge & reset
+│   │   └── TransactionList.tsx          # Filterable ledger transactions & reset
 │   ├── context/
 │   │   └── PreferencesContext.tsx       # Dynamic currency & theme context
 │   ├── services/
-│   │   ├── locationMobilityService.ts   # Haversine math, traffic classifier, simulator
-│   │   └── adminTelemetry.ts           # Privacy-first audit logging
+│   │   ├── adminTelemetry.ts           # Privacy-first audit logging
+│   │   ├── deviceSessionService.ts     # Single-device session lock & hardware UUID
+│   │   └── locationMobilityService.ts   # Haversine math, traffic classifier, simulator
 │   └── types/
 │       └── index.ts                     # Core TypeScript schemas
 └── supabase/

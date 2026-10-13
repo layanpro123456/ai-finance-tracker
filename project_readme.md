@@ -31,8 +31,9 @@ Most finance apps operate in isolation—they only track historical debits and c
 | **Subscriptions** | Monthly & annual recurring commitments with renewal countdown | Active account link, direct cancel URLs |
 | **Social Ledger** | P2P debt tracking (*"They Owe Me"* vs *"I Owe Them"*) | 1-Click settlement modal |
 | **Admin Portal** | Privacy-preserving telemetry, audit logs, and user analytics | Masked IDs, 0 private financial leaks |
-| **Help & Guide** | Comprehensive user-facing tutorial with step-by-step interactive instructions | User-focused, no raw database jargon |
+| **Help & Guide** | Comprehensive user-facing tutorial with step-by-step interactive instructions | Mobile swipeable chapter navigator, non-technical |
 | **Device Sentinel** | Single active device login enforcement & device-bound location telemetry isolation | Hardware UUID, session takeover guard |
+| **Module Reset Sentinel** | Independent 1-click Reset button per module with confirmation modals | In-place deletion and calibration for all 8 subsystems |
 
 ---
 
