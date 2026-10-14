@@ -62,9 +62,9 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
   const { formatCurrency } = usePreferences();
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       {/* Comprehensive Net Worth */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-lg relative overflow-hidden">
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
             Total Net Worth (ERP)
@@ -74,7 +74,7 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
           </div>
         </div>
         <div className="mt-3">
-          <div className="text-2xl font-bold text-white tracking-tight">
+          <div className="text-xl sm:text-2xl font-bold text-white tracking-tight">
             {formatCurrency(totalNetWorth)}
           </div>
           <div className="text-[11px] text-slate-400 mt-1 flex flex-wrap gap-1.5 items-center">
@@ -90,7 +90,7 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
       </div>
 
       {/* Monthly Income */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-lg relative overflow-hidden">
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
             This Month Income
@@ -100,7 +100,7 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
           </div>
         </div>
         <div className="mt-3">
-          <div className="text-2xl font-bold text-emerald-400 tracking-tight">
+          <div className="text-xl sm:text-2xl font-bold text-emerald-400 tracking-tight">
             +{formatCurrency(monthlyIncome)}
           </div>
           <div className="text-xs text-slate-500 mt-1">
@@ -110,7 +110,7 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
       </div>
 
       {/* Monthly Expenses */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-lg relative overflow-hidden">
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
             This Month Expenses
@@ -120,7 +120,7 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
           </div>
         </div>
         <div className="mt-3">
-          <div className="text-2xl font-bold text-rose-400 tracking-tight">
+          <div className="text-xl sm:text-2xl font-bold text-rose-400 tracking-tight">
             -{formatCurrency(monthlyExpense)}
           </div>
           <div className="text-xs text-slate-500 mt-1 flex items-center justify-between">
@@ -133,7 +133,7 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
       </div>
 
       {/* Net Savings & Financial Health */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-lg relative overflow-hidden">
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
             Net Monthly Savings
@@ -144,7 +144,7 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
         </div>
         <div className="mt-3">
           <div
-            className={`text-2xl font-bold tracking-tight ${
+            className={`text-xl sm:text-2xl font-bold tracking-tight ${
               netSavings >= 0 ? 'text-purple-400' : 'text-rose-400'
             }`}
           >

@@ -154,7 +154,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess, initialConflict
         </button>
       </div>
 
-      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 sm:p-9 shadow-2xl relative overflow-hidden">
+      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-5 sm:p-8 sm:p-9 shadow-2xl relative overflow-hidden">
         {/* Glow accents */}
         <div className="absolute -top-24 -right-24 w-52 h-52 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-52 h-52 bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />

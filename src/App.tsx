@@ -454,7 +454,7 @@ export function App() {
         onNavigateToTab={setActiveTab}
       />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+      <main className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 mt-4 sm:mt-6">
         {dataLoading && (
           <div className="flex items-center justify-end text-xs text-slate-500 mb-2 gap-1.5">
             <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />

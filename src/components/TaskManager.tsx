@@ -289,45 +289,45 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Operations Header & Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex items-center justify-between">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Tasks</p>
-            <p className="text-2xl font-bold text-white mt-1">
+            <p className="text-xl sm:text-2xl font-bold text-white mt-1">
               {tasks.filter((t) => t.status !== 'completed').length}
             </p>
           </div>
-          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl">
+          <div className="p-2.5 sm:p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl">
             <Clock className="w-5 h-5" />
           </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex items-center justify-between">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-rose-400 uppercase tracking-wider">Pending Bills / Outflow</p>
-            <p className="text-2xl font-bold text-white mt-1">
+            <p className="text-xl sm:text-2xl font-bold text-white mt-1">
               {formatCurrency(pendingPayablesTotal)}
             </p>
           </div>
-          <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl">
+          <div className="p-2.5 sm:p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl">
             <ArrowDownLeft className="w-5 h-5" />
           </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex items-center justify-between">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Pending Freelance / Inflow</p>
-            <p className="text-2xl font-bold text-white mt-1">
+            <p className="text-xl sm:text-2xl font-bold text-white mt-1">
               {formatCurrency(pendingReceivablesTotal)}
             </p>
           </div>
-          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl">
+          <div className="p-2.5 sm:p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl">
             <ArrowUpRight className="w-5 h-5" />
           </div>
         </div>
 
         {/* Daily Financial Habit Widget */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex items-center justify-between">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-1.5">
               <Flame className="w-4 h-4 text-amber-400 fill-amber-400" />
