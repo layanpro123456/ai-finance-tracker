@@ -80,6 +80,17 @@ For in-depth technical specifications, setup workflows, and schema definitions:
 
 ---
 
+## 📝 Continuous Documentation Synchronization Invariant
+
+> [!IMPORTANT]
+> **Mandatory Post-Commit Markdown Update Rule:**
+> Every commit or feature implementation **must** update the corresponding Markdown documentation (`README.md`, `project_readme.md`, `contributing_guidelines.md`, `database_schema.md`, `setup_guide.md`) in lockstep within that exact same commit.
+> - Any newly created component or service must be cataloged in the project file tree and module table.
+> - Any schema, invariant, or workflow changes must be updated immediately.
+> - Code and documentation must never drift apart.
+
+---
+
 ## ⚡ Quick Start
 
 1. Follow the [Setup Guide](setup_guide.md) to provision your Supabase instance.
