@@ -13,6 +13,7 @@ import type {
 import { AuthModal } from './components/AuthModal';
 import { Navbar, type ErpTab } from './components/Navbar';
 import { MetricCards } from './components/MetricCards';
+import { PredictiveCashFlow } from './components/PredictiveCashFlow';
 import { AiTransactionInput } from './components/AiTransactionInput';
 import { AccountManager } from './components/AccountManager';
 import { TransactionList } from './components/TransactionList';
@@ -476,6 +477,14 @@ export function App() {
               assets={assets}
               contactsLedger={contactsLedger}
               tasks={tasks}
+            />
+
+            {/* Predictive Cash Flow & Overdraft Forecast Engine */}
+            <PredictiveCashFlow
+              accounts={accounts}
+              subscriptions={subscriptions}
+              tasks={tasks}
+              transactions={transactions}
             />
 
             {/* AI Natural Language Logger */}

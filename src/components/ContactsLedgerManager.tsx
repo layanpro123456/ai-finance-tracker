@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { ContactsLedger, Account, ContactDebtType } from '../types';
 import { supabase } from '../supabaseClient';
 import { usePreferences } from '../context/PreferencesContext';
+import { SplitBillModal } from './SplitBillModal';
 import {
   Users,
   Plus,
@@ -32,8 +33,14 @@ export const ContactsLedgerManager: React.FC<ContactsLedgerManagerProps> = ({
 }) => {
   const { formatCurrency, formatDate } = usePreferences();
   const [isAdding, setIsAdding] = useState(false);
+  const [isSplitModalOpen, setIsSplitModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Unique contact names for quick picking in splits
+  const existingContactNames = useMemo(() => {
+    return Array.from(new Set(contactsLedger.map((c) => c.contact_name).filter(Boolean)));
+  }, [contactsLedger]);
 
   // Settlement Modal State
   const [settlingItem, setSettlingItem] = useState<ContactsLedger | null>(null);
@@ -279,11 +286,19 @@ export const ContactsLedgerManager: React.FC<ContactsLedgerManagerProps> = ({
             </button>
 
             <button
+              onClick={() => setIsSplitModalOpen(true)}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-lg shadow-indigo-600/20 transition cursor-pointer"
+            >
+              <Users className="w-4 h-4" />
+              <span>Split Group Bill</span>
+            </button>
+
+            <button
               onClick={() => setIsAdding(!isAdding)}
               className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 transition cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>{isAdding ? 'Close Form' : 'Record IOU / Split'}</span>
+              <span>{isAdding ? 'Close Form' : '1-on-1 IOU'}</span>
             </button>
           </div>
         </div>
@@ -570,6 +585,16 @@ export const ContactsLedgerManager: React.FC<ContactsLedgerManagerProps> = ({
           </div>
         </div>
       )}
+
+      {/* Split Group Bill Modal (Splitwise Alternative) */}
+      <SplitBillModal
+        isOpen={isSplitModalOpen}
+        onClose={() => setIsSplitModalOpen(false)}
+        userId={userId}
+        accounts={accounts}
+        existingContacts={existingContactNames}
+        onSuccess={onLedgerUpdated}
+      />
     </div>
   );
 };

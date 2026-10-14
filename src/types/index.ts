@@ -223,6 +223,8 @@ export interface MobilityTimelineEvent {
   notes?: string;
   latitude?: number;
   longitude?: number;
+  is_business_trip?: boolean;
+  tax_deduction_amount?: number;
   created_at?: string;
 }
 
@@ -236,6 +238,8 @@ export interface DailyMobilityStats {
   walking_km: number;
   cycling_km: number;
   vehicle_km: number;
+  business_distance_km?: number;
+  tax_deduction_accrued?: number;
   estimated_transit_cost: number;
   logged_transit_cost: number;
   top_speed_kmh: number;
@@ -267,6 +271,56 @@ export interface UserDeviceSession {
   platform?: string;
   last_active_at: string;
   created_at?: string;
+}
+
+// ============================================================================
+// Phase 3: Deep Intelligence & Social ERP Extensions
+// ============================================================================
+
+export interface CashFlowForecastEvent {
+  name: string;
+  amount: number;
+  type: 'income' | 'expense';
+  source: 'subscription' | 'task' | 'burn_rate' | 'simulated';
+}
+
+export interface CashFlowForecastPoint {
+  date: string; // YYYY-MM-DD
+  dayLabel: string; // e.g. Oct 24
+  projectedBalance: number;
+  scheduledIncome: number;
+  scheduledExpenses: number;
+  dailyBurn: number;
+  events: CashFlowForecastEvent[];
+  isOverdraft: boolean;
+}
+
+export interface CashFlowForecastSummary {
+  startingBalance: number;
+  endingBalance: number;
+  minProjectedBalance: number;
+  minBalanceDate: string | null;
+  isOverdraftRisk: boolean;
+  overdraftDate: string | null;
+  runwayDays: number | null;
+  runwayMonths: number | null;
+  dailyAverageBurnRate: number;
+  totalScheduledInflow: number;
+  totalScheduledOutflow: number;
+}
+
+export interface BillParticipant {
+  id: string;
+  name: string;
+  shareAmount: number;
+  isUser: boolean;
+}
+
+export interface BillSplitSession {
+  totalAmount: number;
+  description: string;
+  splitType: 'equal' | 'exact' | 'percentage';
+  participants: BillParticipant[];
 }
 
 

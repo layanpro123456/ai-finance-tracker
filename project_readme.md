@@ -24,15 +24,17 @@ Most finance apps operate in isolation—they only track historical debits and c
 | Module | Purpose | Key Integrations & Safeguards |
 | :--- | :--- | :--- |
 | **Overview Dashboard** | Real-time Net Worth, liquid cash, monthly burn rate, pending bills, and recent ledger feed | Aggregates all ERP subsystems into an executive command center |
+| **Predictive Cash Flow** | 30/60/90-day day-by-day cash forecast, overdraft radar alerts, liquid runway calculation, and What-If stress-testing sandbox | Dynamic SVG trajectory chart combining subscriptions, bill tasks & historical burn rate |
 | **AI Ledger Logger** | Natural language expense entry across 40+ global currencies (`$`, `Rs`, `€`, `£`, `₹`, etc.) | Google Gemini 2.0 / 2.5 Flash with automatic category and date inference |
 | **Daily Tasks & Bills** | Operational to-dos with financial bridges and daily "No-Spend" streak challenge | Checking off tasks logs ledger entries; cloud-synced with Supabase |
 | **Location & Timeline** | GPS velocity gauge, commute legs, dwell stops, and traffic-resilient transit detection | Haversine formula + traffic hysteresis + Route Simulator |
+| **Tax Mileage Engine** | Work vs. Personal trip classification, standard mileage tax deductions (IRS/CRA/HMRC), CSV export & printable reimbursement reports | Accrued tax write-off calculator with configurable rates & units (km/mi) |
 | **Geofenced Places** | Saved waypoints with proximity radii triggering contextual payment alerts on arrival | Integrated with Budgets, Tasks & IOUs; responsive top proximity banner |
 | **Financial Accounts** | Multi-account balance sheets (Checking, Savings, Cash, Credit Card) | Strict `0.00` starting balance policy; zero hallucinated funds |
 | **Category Budgets** | Monthly category caps with interactive visual spending gauges | Progress tracking and over-budget warnings |
 | **Asset Vault** | Fixed assets (electronics, vehicles, tools) feeding into Net Worth | Purchase price, current value, and warranty expiration countdowns |
 | **Subscriptions** | Monthly & annual recurring commitments with renewal countdown | Active account links, direct cancellation URLs to prevent subscription creep |
-| **Social Ledger** | P2P debt tracking (*"They Owe Me"* vs *"I Owe Them"*) | 1-Click settlement modal that updates contact balances and records ledger payments |
+| **Social Ledger & Split** | P2P debt tracking and group bill splitter with equal/exact/% modes and instant payment links (UPI, Venmo, PayPal, CashApp) | 1-Click settlement and direct ledger sync without requiring friends to install the app |
 | **Two-Row Navigation** | Row 1 (Identity & System Controls) + Row 2 (10-Module Tab Ribbon) | Auto-scroll centering, gradient overflow fade masks, and mobile slide-over drawer |
 | **Strict Admin Portal** | Platform telemetry, audit logs, and 1-click database refresh | Restricted strictly to `layanmoyura@proton.me`; discrete `Ctrl+Shift+A` / `#admin` access |
 | **Zero-Data DB Purge** | 1-Click platform/workspace database purge across all 11 tables | Resets accounts to `0.00`, wipes stale `localStorage`, and preserves user auth accounts |

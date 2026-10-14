@@ -619,3 +619,62 @@ export const SIMULATION_SCENARIOS: SimulationScenario[] = [
     ],
   },
 ];
+
+// ============================================================================
+// Phase 3: Tax Deduction & Mileage Export Engine
+// ============================================================================
+export function exportMileageReportCsv(
+  events: MobilityTimelineEvent[],
+  rate: number,
+  currencySymbol: string,
+  unit: 'km' | 'miles' = 'km'
+): void {
+  const tripEvents = events.filter((e) => e.event_type === 'trip');
+  const headers = [
+    'Date',
+    'Time',
+    'Trip Title',
+    'Transport Mode',
+    `Distance (${unit})`,
+    'Purpose',
+    `Rate (${currencySymbol}/${unit})`,
+    `Tax Deduction (${currencySymbol})`,
+    'Ledger Status',
+  ];
+
+  const rows = tripEvents.map((ev) => {
+    const date = ev.start_time.split('T')[0];
+    const time = new Date(ev.start_time).toLocaleTimeString();
+    const km = ev.distance_km || 0;
+    const distanceVal = unit === 'miles' ? km * 0.621371 : km;
+    const isBusiness = ev.is_business_trip ?? (ev.mode === 'vehicle');
+    const deduction = isBusiness ? distanceVal * rate : 0;
+
+    return [
+      `"${date}"`,
+      `"${time}"`,
+      `"${(ev.title || 'Trip').replace(/"/g, '""')}"`,
+      `"${ev.mode || 'vehicle'}"`,
+      distanceVal.toFixed(2),
+      isBusiness ? '"Business / Work"' : '"Personal"',
+      rate.toFixed(2),
+      deduction.toFixed(2),
+      ev.is_cost_logged ? '"Cost Logged"' : '"Pending"',
+    ].join(',');
+  });
+
+  const csvContent = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute(
+    'download',
+    `apex_commute_mileage_report_${new Date().toISOString().slice(0, 10)}.csv`
+  );
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
