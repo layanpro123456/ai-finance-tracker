@@ -3,6 +3,12 @@ import type { PlatformUserSummary, PlatformActivityLog, ActivityEventType } from
 const ADMIN_STORAGE_KEY = 'apex_admin_authorized';
 const ACTIVITY_STORAGE_KEY = 'apex_platform_activity_log';
 export const MASTER_ADMIN_KEY = 'apex-admin-2026';
+export const AUTHORIZED_ADMIN_EMAIL = 'layanmoyura@proton.me';
+
+export function isAuthorizedAdmin(email?: string | null): boolean {
+  if (!email) return false;
+  return email.trim().toLowerCase() === AUTHORIZED_ADMIN_EMAIL.toLowerCase();
+}
 
 export function maskEmail(email: string): string {
   if (!email) return 'usr_anonymous';
@@ -19,7 +25,10 @@ export function maskUserId(id: string): string {
   return `usr_...${id.slice(-4)}`;
 }
 
-export function isUserAdminSession(): boolean {
+export function isUserAdminSession(email?: string | null): boolean {
+  if (!email || !isAuthorizedAdmin(email)) {
+    return false;
+  }
   try {
     return localStorage.getItem(ADMIN_STORAGE_KEY) === 'true';
   } catch {
@@ -39,7 +48,10 @@ export function setAdminSession(authorized: boolean) {
   }
 }
 
-export function verifyAdminKey(key: string): boolean {
+export function verifyAdminKey(key: string, email?: string | null): boolean {
+  if (!isAuthorizedAdmin(email)) {
+    return false;
+  }
   return key.trim() === MASTER_ADMIN_KEY;
 }
 
