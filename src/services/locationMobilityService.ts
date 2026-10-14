@@ -434,16 +434,8 @@ export async function loadSavedPlaces(
     }
   }
 
-  // 3. Seed default places for this physical device
-  const initialPlaces: SavedPlace[] = DEFAULT_INITIAL_PLACES.map((p, idx) => ({
-    ...p,
-    id: `seed-place-${deviceId.slice(0, 8)}-${idx + 1}`,
-    user_id: userId,
-    device_id: deviceId,
-    created_at: new Date().toISOString(),
-  }));
-  localStorage.setItem(deviceKey, JSON.stringify(initialPlaces));
-  return initialPlaces;
+  // Return empty list if no saved places exist (zero hallucinated sample places)
+  return [];
 }
 
 export async function persistSavedPlace(
@@ -539,69 +531,8 @@ export async function loadTimelineEvents(
     }
   }
 
-  // Seed sample initial timeline events for this physical device
-  const sampleEvents: MobilityTimelineEvent[] = [
-    {
-      id: `event-${deviceId.slice(0, 6)}-1`,
-      user_id: userId,
-      device_id: deviceId,
-      device_name: getDeviceName(),
-      event_type: 'trip',
-      title: 'Morning Office Commute (Express)',
-      start_time: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
-      end_time: new Date(Date.now() - 3.5 * 3600 * 1000).toISOString(),
-      duration_seconds: 1800,
-      mode: 'vehicle',
-      in_traffic: false,
-      distance_km: 14.8,
-      avg_speed_kmh: 42.5,
-      max_speed_kmh: 68.0,
-      estimated_cost: 2.66,
-      is_cost_logged: true,
-      place_name: 'Metropolitan Office HQ',
-      notes: 'Smooth arterial highway transit',
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: `event-${deviceId.slice(0, 6)}-2`,
-      user_id: userId,
-      device_id: deviceId,
-      device_name: getDeviceName(),
-      event_type: 'stay',
-      title: 'Work Stay at Office HQ',
-      start_time: new Date(Date.now() - 3.5 * 3600 * 1000).toISOString(),
-      end_time: new Date(Date.now() - 1 * 3600 * 1000).toISOString(),
-      duration_seconds: 9000,
-      mode: 'stationary',
-      place_name: 'Metropolitan Office HQ',
-      notes: '2.5 hours productive dwell time',
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: `event-${deviceId.slice(0, 6)}-3`,
-      user_id: userId,
-      device_id: deviceId,
-      device_name: getDeviceName(),
-      event_type: 'trip',
-      title: 'Lunch Errand in Heavy Traffic',
-      start_time: new Date(Date.now() - 55 * 60 * 1000).toISOString(),
-      end_time: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
-      duration_seconds: 1200,
-      mode: 'vehicle',
-      in_traffic: true,
-      distance_km: 3.2,
-      avg_speed_kmh: 9.6,
-      max_speed_kmh: 26.0,
-      estimated_cost: 0.67,
-      is_cost_logged: false,
-      place_name: 'City Supermarket (Trader Joe’s)',
-      notes: 'Congested street crawl with red lights',
-      created_at: new Date().toISOString(),
-    },
-  ];
-
-  localStorage.setItem(deviceKey, JSON.stringify(sampleEvents));
-  return sampleEvents;
+  // Return empty list if no timeline events exist (zero hallucinated sample events)
+  return [];
 }
 
 export async function persistTimelineEvent(
@@ -665,24 +596,24 @@ export async function loadDailyMobilityStats(
     }
   }
 
-  const defaultStats: DailyMobilityStats = {
+  // Clean zero-initialized daily statistics (zero hallucinated mileage or costs)
+  const cleanStats: DailyMobilityStats = {
     user_id: userId,
     device_id: deviceId,
     stat_date: statDate,
-    total_distance_km: 18.0,
-    transit_time_minutes: 50,
-    walking_km: 1.2,
+    total_distance_km: 0,
+    transit_time_minutes: 0,
+    walking_km: 0,
     cycling_km: 0,
-    vehicle_km: 16.8,
-    estimated_transit_cost: 3.33,
-    logged_transit_cost: 2.66,
-    top_speed_kmh: 68.0,
-    active_stops_count: 2,
+    vehicle_km: 0,
+    estimated_transit_cost: 0,
+    logged_transit_cost: 0,
+    top_speed_kmh: 0,
+    active_stops_count: 0,
     created_at: new Date().toISOString(),
   };
 
-  localStorage.setItem(deviceKey, JSON.stringify(defaultStats));
-  return defaultStats;
+  return cleanStats;
 }
 
 export async function updateDailyMobilityStats(

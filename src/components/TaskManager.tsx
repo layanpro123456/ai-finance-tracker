@@ -60,9 +60,9 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
   const [accountId, setAccountId] = useState<string>('');
   const [recurrenceRule, setRecurrenceRule] = useState<string>('none');
 
-  // Daily Streak mock state (persists in localStorage)
+  // Daily Streak state (persists in localStorage)
   const [noSpendStreak, setNoSpendStreak] = useState<number>(() => {
-    return parseInt(localStorage.getItem('apex_no_spend_streak') || '4', 10);
+    return parseInt(localStorage.getItem('apex_no_spend_streak') || '0', 10);
   });
   const [markedTodayNoSpend, setMarkedTodayNoSpend] = useState<boolean>(() => {
     return localStorage.getItem('apex_marked_today') === new Date().toISOString().split('T')[0];

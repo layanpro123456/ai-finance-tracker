@@ -921,6 +921,16 @@ export const HelpGuide: React.FC<HelpGuideProps> = ({ onNavigateTab }) => {
                     Every module in Apex LifeOS has its own independent <strong>&ldquo;Reset [Module]&rdquo;</strong> button located right in its header toolbar (e.g. Reset Transactions, Reset Accounts, Reset Budgets, Reset Tasks, Reset Timeline, Reset Assets, Reset Subscriptions, Reset Social Ledger). Clicking any reset button prompts you with a confirmation dialog so you can selectively refresh individual parts of your life without wiping your entire system.
                   </p>
                 </div>
+
+                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1.5">
+                  <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <Database className="w-4 h-4 text-purple-400" />
+                    <span>How does the Admin Full Database Refresh work, and why is sample data removed?</span>
+                  </h4>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Administrators can navigate to the <strong>Executive Admin Console &rarr; Database &amp; Schema</strong> tab (or click <strong>&ldquo;Fully Refresh DB&rdquo;</strong> in the admin header) to completely wipe all 11 database tables and purge all device-scoped local storage caches. Furthermore, Apex LifeOS operates on a strict zero-hallucination policy: all automatic sample data injection (mock places, fabricated commute trips, fake users, and inflated streaks) has been removed. Empty database states reflect actual clean zero records.
+                  </p>
+                </div>
               </div>
             </div>
           )}

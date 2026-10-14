@@ -196,7 +196,7 @@ export function App() {
           .insert({
             user_id: user.id,
             name: 'Primary Checking',
-            balance: 1000.0,
+            balance: 0.0,
             currency: 'USD',
           })
           .select('*')
@@ -711,6 +711,7 @@ export function App() {
               setIsAdmin(false);
               setActiveTab('dashboard');
             }}
+            onRefreshDatabase={fetchData}
           />
         )}
       </main>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import type { PlatformUserSummary, PlatformActivityLog, ActivityEventType } from '../types';
 import {
   ShieldAlert,
@@ -17,12 +17,24 @@ import {
   Sparkles,
   X,
   EyeOff,
+  RotateCcw,
+  Trash2,
+  AlertTriangle,
+  Check,
+  Loader2,
+  HardDrive,
 } from 'lucide-react';
 import {
   getPlatformUsers,
   getPlatformActivityLogs,
   setAdminSession,
 } from '../services/adminTelemetry';
+import {
+  purgeAllDatabaseData,
+  getDatabaseDiagnostics,
+  type DatabaseDiagnostics,
+  type DatabaseRefreshReport,
+} from '../services/databaseAdminService';
 
 interface AdminPortalProps {
   currentUserId?: string;
@@ -34,15 +46,17 @@ interface AdminPortalProps {
     subsCount: number;
   };
   onLockSession: () => void;
+  onRefreshDatabase?: () => Promise<void> | void;
 }
 
-type AdminViewTab = 'users' | 'activity' | 'security';
+type AdminViewTab = 'users' | 'activity' | 'database' | 'security';
 
 export const AdminPortal: React.FC<AdminPortalProps> = ({
   currentUserId,
   currentUserEmail,
   userStats,
   onLockSession,
+  onRefreshDatabase,
 }) => {
   const [activeTab, setActiveTab] = useState<AdminViewTab>('users');
   const [searchQuery, setSearchQuery] = useState('');
@@ -77,6 +91,77 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
+  };
+
+  // Database diagnostics & full refresh state
+  const [diagnostics, setDiagnostics] = useState<DatabaseDiagnostics | null>(null);
+  const [isLoadingDiagnostics, setIsLoadingDiagnostics] = useState(false);
+  const [showRefreshModal, setShowRefreshModal] = useState(false);
+  const [refreshConfirmInput, setRefreshConfirmInput] = useState('');
+  const [isExecutingRefresh, setIsExecutingRefresh] = useState(false);
+  const [refreshReport, setRefreshReport] = useState<DatabaseRefreshReport | null>(null);
+  const [refreshProgressStep, setRefreshProgressStep] = useState<string>('');
+
+  const fetchDiagnostics = useCallback(async () => {
+    if (!currentUserId) return;
+    setIsLoadingDiagnostics(true);
+    try {
+      const diag = await getDatabaseDiagnostics(currentUserId);
+      setDiagnostics(diag);
+    } catch (err) {
+      console.error('Error fetching database diagnostics:', err);
+    } finally {
+      setIsLoadingDiagnostics(false);
+    }
+  }, [currentUserId]);
+
+  useEffect(() => {
+    if (activeTab === 'database' || showRefreshModal) {
+      fetchDiagnostics();
+    }
+  }, [activeTab, showRefreshModal, fetchDiagnostics]);
+
+  const handleExecuteFullRefresh = async () => {
+    if (refreshConfirmInput.trim().toUpperCase() !== 'REFRESH') {
+      return;
+    }
+    if (!currentUserId) {
+      alert('Active user credentials required to perform targeted database refresh.');
+      return;
+    }
+
+    setIsExecutingRefresh(true);
+    setRefreshProgressStep('Purging user tables across transactions, budgets, ERP modules...');
+
+    try {
+      const report = await purgeAllDatabaseData(currentUserId, currentUserEmail);
+      setRefreshProgressStep('Wiping hardware-bound local telemetry and caches...');
+      setRefreshReport(report);
+
+      // Re-fetch local users & telemetry
+      setUsers(getPlatformUsers(currentUserId, currentUserEmail, {
+        transactionsCount: 0,
+        accountsCount: 1,
+        tasksCount: 0,
+        subsCount: 0,
+      }));
+      setActivities(getPlatformActivityLogs());
+
+      // Re-fetch database diagnostics
+      const diag = await getDatabaseDiagnostics(currentUserId);
+      setDiagnostics(diag);
+
+      // Notify parent App to refresh all ERP hooks
+      if (onRefreshDatabase) {
+        await onRefreshDatabase();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Database refresh encountered an error';
+      alert(msg);
+    } finally {
+      setIsExecutingRefresh(false);
+      setRefreshProgressStep('');
+    }
   };
 
   // Filtered users list
@@ -143,6 +228,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             >
               <Download className="w-3.5 h-3.5" />
               <span>Export Audit</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setRefreshReport(null);
+                setRefreshConfirmInput('');
+                setShowRefreshModal(true);
+              }}
+              title="Full Database Refresh (Zero Sample Data)"
+              className="px-3.5 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-rose-400" />
+              <span>Fully Refresh DB</span>
             </button>
 
             <button
@@ -263,6 +361,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         >
           <Activity className="w-4 h-4" />
           <span>Live Activity Audit Stream ({filteredActivities.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('database')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+            activeTab === 'database'
+              ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'
+              : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+          }`}
+        >
+          <Database className="w-4 h-4" />
+          <span>Database &amp; Schema ({diagnostics?.totalRecords ?? 0} rows)</span>
         </button>
 
         <button
@@ -527,7 +637,144 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       )}
 
       {/* ========================================================================= */}
-      {/* 3. SECURITY & RLS SENTINEL */}
+      {/* 3. DATABASE & SCHEMA OPERATIONS */}
+      {/* ========================================================================= */}
+      {activeTab === 'database' && (
+        <div className="space-y-6">
+          {/* Zero Hallucination Guarantee Card */}
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-semibold mb-2">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Zero Hallucination Policy Enforced</span>
+                </div>
+                <h3 className="text-xl font-bold text-white tracking-tight">
+                  Database Health &amp; Schema Status
+                </h3>
+                <p className="text-xs text-slate-400 mt-1 max-w-2xl leading-relaxed">
+                  Automatic sample data seeding and fabricated demo activity have been permanently removed. Empty state indicators reflect genuine zero-record databases without synthetic padding.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={fetchDiagnostics}
+                  disabled={isLoadingDiagnostics}
+                  className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer border border-slate-700 disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingDiagnostics ? 'animate-spin text-purple-400' : ''}`} />
+                  <span>Scan DB Records</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setRefreshReport(null);
+                    setRefreshConfirmInput('');
+                    setShowRefreshModal(true);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-lg shadow-rose-600/20"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Fully Refresh DB</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Diagnostic Metrics */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800/80">
+                <span className="text-[11px] font-medium text-slate-400 block">Total Live Records</span>
+                <span className="text-2xl font-bold text-white tracking-tight mt-1 block">
+                  {diagnostics?.totalRecords ?? 0}
+                </span>
+                <span className="text-[10px] text-slate-500 font-mono">Across all tables</span>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800/80">
+                <span className="text-[11px] font-medium text-slate-400 block">Database Status</span>
+                <span className="text-2xl font-bold text-emerald-400 tracking-tight mt-1 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                  <span>{(diagnostics?.totalRecords ?? 0) === 0 ? 'Clean Slate' : 'Active Data'}</span>
+                </span>
+                <span className="text-[10px] text-slate-500 font-mono">Row-Level Security Active</span>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800/80">
+                <span className="text-[11px] font-medium text-slate-400 block">Tracked Tables</span>
+                <span className="text-2xl font-bold text-white tracking-tight mt-1 block">
+                  {diagnostics?.tables.length ?? 11}
+                </span>
+                <span className="text-[10px] text-slate-500 font-mono">Public ERP Schemas</span>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800/80">
+                <span className="text-[11px] font-medium text-slate-400 block">Sample Seeding</span>
+                <span className="text-2xl font-bold text-rose-400 tracking-tight mt-1 block">
+                  Disabled
+                </span>
+                <span className="text-[10px] text-emerald-400 font-medium">100% Genuine Metrics</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Detailed Module Table Inspection */}
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
+                  <HardDrive className="w-4 h-4 text-purple-400" />
+                  <span>Module Row Counts &amp; Schema Telemetry</span>
+                </h4>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Real-time record counts for each isolated database table in this member workspace.
+                </p>
+              </div>
+              <span className="text-[11px] font-mono text-slate-500">
+                Last checked: {diagnostics?.lastChecked ? new Date(diagnostics.lastChecked).toLocaleTimeString() : 'Just now'}
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
+                    <th className="py-2.5 px-3">Table Identifier</th>
+                    <th className="py-2.5 px-3">Module Description</th>
+                    <th className="py-2.5 px-3 text-center">Row Count</th>
+                    <th className="py-2.5 px-3 text-right">Database State</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-850">
+                  {diagnostics?.tables.map((tbl) => (
+                    <tr key={tbl.table} className="hover:bg-slate-850/40 transition">
+                      <td className="py-2.5 px-3 font-mono text-purple-300">
+                        public.{tbl.table}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-200">
+                        {tbl.name}
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-bold text-white font-mono">
+                        {tbl.count}
+                      </td>
+                      <td className="py-2.5 px-3 text-right">
+                        {tbl.count === 0 ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 text-[10px] font-medium border border-slate-700">
+                            Clean Slate
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-300 text-[10px] font-semibold border border-purple-500/25">
+                            {tbl.count} Records Active
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 4. SECURITY & RLS SENTINEL */}
       {/* ========================================================================= */}
       {activeTab === 'security' && (
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
@@ -672,6 +919,147 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 Close Inspector
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full Database Refresh Modal */}
+      {showRefreshModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl relative">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 font-bold flex items-center justify-center">
+                  <RotateCcw className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Full Database Refresh</h3>
+                  <p className="text-xs text-rose-400/90 font-medium">Destructive Administrative Action</p>
+                </div>
+              </div>
+              {!isExecutingRefresh && (
+                <button
+                  onClick={() => setShowRefreshModal(false)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+
+            {refreshReport ? (
+              <div className="py-6 space-y-5 text-xs">
+                <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 space-y-2">
+                  <div className="flex items-center gap-2 font-bold text-sm text-emerald-400">
+                    <CheckCircle2 className="w-5 h-5" />
+                    <span>Database Successfully Refreshed</span>
+                  </div>
+                  <p className="text-slate-300 leading-relaxed">
+                    {refreshReport.message}
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                  <span className="font-semibold text-slate-400 block uppercase tracking-wider text-[10px]">
+                    Purge Summary
+                  </span>
+                  <div className="grid grid-cols-2 gap-2 text-slate-300">
+                    <div className="flex items-center gap-1.5">
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      <span>{refreshReport.clearedTables.filter((t) => t.status === 'purged').length} Tables Purged</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      <span>Local Storage Wiped</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      <span>Checking Acct (0.00) Reset</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      <span>Zero Sample Data</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2 border-t border-slate-800">
+                  <button
+                    onClick={() => {
+                      setShowRefreshModal(false);
+                      setRefreshReport(null);
+                    }}
+                    className="px-5 py-2.5 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-xl transition cursor-pointer shadow-lg shadow-emerald-400/20"
+                  >
+                    Done &amp; Return
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="py-5 space-y-4 text-xs">
+                <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-300 text-xs space-y-1.5">
+                  <div className="flex items-center gap-2 font-bold text-rose-400">
+                    <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                    <span>Warning: Irreversible Data Deletion</span>
+                  </div>
+                  <p className="text-slate-300 leading-relaxed text-[11px]">
+                    This will permanently delete all records across transactions, budgets, tasks, assets, subscriptions, social debts, saved places, mobility timeline trips, and active sessions.
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2 text-[11px]">
+                  <span className="font-semibold text-slate-300 block">Actions that will be executed:</span>
+                  <ul className="space-y-1.5 text-slate-400 list-disc list-inside">
+                    <li>Purge 11 PostgreSQL database tables via Row-Level Security</li>
+                    <li>Wipe device-scoped mobility caches, mock coordinates, and streak history</li>
+                    <li>Restore 1 clean <code className="text-purple-300 font-mono">Primary Checking</code> account with balance <code className="text-emerald-400 font-mono">0.00</code></li>
+                    <li>Eliminate all hallucinated sample data injection from future loads</li>
+                  </ul>
+                </div>
+
+                {isExecutingRefresh ? (
+                  <div className="p-6 rounded-2xl bg-slate-950 border border-slate-800 text-center space-y-3">
+                    <Loader2 className="w-8 h-8 animate-spin text-purple-400 mx-auto" />
+                    <div className="font-semibold text-white">Refreshing Database...</div>
+                    <p className="text-[11px] text-slate-400">{refreshProgressStep}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 pt-2">
+                    <label className="block text-slate-300 text-[11px] font-semibold">
+                      To confirm, type <span className="font-mono text-rose-400 font-bold">REFRESH</span> below:
+                    </label>
+                    <input
+                      type="text"
+                      value={refreshConfirmInput}
+                      onChange={(e) => setRefreshConfirmInput(e.target.value)}
+                      placeholder="Type REFRESH to confirm"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-rose-500 font-mono"
+                    />
+                  </div>
+                )}
+
+                {!isExecutingRefresh && (
+                  <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setShowRefreshModal(false)}
+                      className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={refreshConfirmInput.trim().toUpperCase() !== 'REFRESH'}
+                      onClick={handleExecuteFullRefresh}
+                      className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-lg shadow-rose-600/20"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Execute Full Refresh</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
