@@ -4,6 +4,7 @@ import { logPlatformEvent, isAuthorizedAdmin } from './adminTelemetry';
 export interface TableDiagnostic {
   table: string;
   name: string;
+  category: 'core' | 'erp' | 'mobility' | 'system';
   count: number;
   status: 'clean' | 'has_data';
 }
@@ -12,6 +13,7 @@ export interface DatabaseDiagnostics {
   tables: TableDiagnostic[];
   totalRecords: number;
   lastChecked: string;
+  scope: 'global' | 'workspace';
 }
 
 export interface DatabaseRefreshReport {
@@ -23,22 +25,36 @@ export interface DatabaseRefreshReport {
   message: string;
 }
 
-const TRACKED_TABLES: { table: string; name: string }[] = [
-  { table: 'transactions', name: 'Transactions & Ledger Entries' },
-  { table: 'budgets', name: 'Monthly Budget Targets' },
-  { table: 'tasks', name: 'Tasks & Financial Obligations' },
-  { table: 'personal_assets', name: 'Personal Assets & Inventory' },
-  { table: 'subscriptions', name: 'Recurring Subscriptions' },
-  { table: 'contacts_ledger', name: 'Social Ledger (P2P Debts)' },
-  { table: 'saved_places', name: 'Saved Geofence Places' },
-  { table: 'mobility_timeline_events', name: 'Mobility Timeline Events' },
-  { table: 'daily_mobility_stats', name: 'Daily Mobility Statistics' },
-  { table: 'user_device_sessions', name: 'Active Device Sessions' },
-  { table: 'accounts', name: 'Financial Accounts' },
+export const TRACKED_TABLES: {
+  table: string;
+  name: string;
+  category: 'core' | 'erp' | 'mobility' | 'system';
+}[] = [
+  // 1. Core Financial Ledger
+  { table: 'accounts', name: 'Financial Accounts & Balances', category: 'core' },
+  { table: 'transactions', name: 'Transactions & Ledger Entries', category: 'core' },
+  { table: 'categories', name: 'Taxonomy Categories (Income & Expense)', category: 'core' },
+  { table: 'budgets', name: 'Monthly Budget Caps & Targets', category: 'core' },
+
+  // 2. Personal ERP Expansion Subsystems
+  { table: 'tasks', name: 'Tasks & Financial Obligations', category: 'erp' },
+  { table: 'personal_assets', name: 'Personal Assets, Hardware & Warranties', category: 'erp' },
+  { table: 'subscriptions', name: 'Recurring Subscriptions & Renewals', category: 'erp' },
+  { table: 'contacts_ledger', name: 'Social Ledger (P2P Debts / IOUs)', category: 'erp' },
+
+  // 3. Physical Mobility, Geofencing & Telemetry
+  { table: 'saved_places', name: 'Saved Geofence Places & Payment Rules', category: 'mobility' },
+  { table: 'mobility_timeline_events', name: 'Mobility Timeline Events & Commute Legs', category: 'mobility' },
+  { table: 'daily_mobility_stats', name: 'Daily Mobility Summary Aggregates', category: 'mobility' },
+  { table: 'device_location_pings', name: 'Android APK GPS & Telemetry Pings', category: 'mobility' },
+
+  // 4. Platform Security & Hardware Sentinel
+  { table: 'user_device_sessions', name: 'Active Device Sessions & Hardware Sentinel', category: 'system' },
 ];
 
 /**
- * Inspect live record counts for all ERP modules
+ * Inspect live record counts for all 13 ERP tables across the database.
+ * @param userId Optional user UUID. If omitted, queries global table counts across all platform records.
  */
 export async function getDatabaseDiagnostics(userId?: string): Promise<DatabaseDiagnostics> {
   const diagnostics: TableDiagnostic[] = [];
@@ -48,13 +64,18 @@ export async function getDatabaseDiagnostics(userId?: string): Promise<DatabaseD
     try {
       let query = supabase.from(item.table).select('*', { count: 'exact', head: true });
       if (userId) {
-        query = query.eq('user_id', userId);
+        if (item.table === 'categories') {
+          query = query.or(`user_id.eq.${userId},is_default.eq.true`);
+        } else {
+          query = query.eq('user_id', userId);
+        }
       }
       const { count, error } = await query;
       const rowCount = !error && count !== null ? count : 0;
       diagnostics.push({
         table: item.table,
         name: item.name,
+        category: item.category,
         count: rowCount,
         status: rowCount === 0 ? 'clean' : 'has_data',
       });
@@ -63,6 +84,7 @@ export async function getDatabaseDiagnostics(userId?: string): Promise<DatabaseD
       diagnostics.push({
         table: item.table,
         name: item.name,
+        category: item.category,
         count: 0,
         status: 'clean',
       });
@@ -73,6 +95,7 @@ export async function getDatabaseDiagnostics(userId?: string): Promise<DatabaseD
     tables: diagnostics,
     totalRecords,
     lastChecked: new Date().toISOString(),
+    scope: userId ? 'workspace' : 'global',
   };
 }
 
@@ -93,7 +116,7 @@ const DEFAULT_SYSTEM_CATEGORIES = [
 ];
 
 /**
- * Fully purge database records across tables while preserving authentication accounts in auth.users.
+ * Fully purge database records across all 13 tables while preserving authentication accounts in auth.users.
  * Guarantees all user starting accounts are reset strictly to 0.00 balance.
  */
 export async function purgeAllDatabaseData(
@@ -122,17 +145,48 @@ export async function purgeAllDatabaseData(
     }
   }
 
-  // 2. Cascade deletion across all tracked tables
-  for (const item of TRACKED_TABLES) {
+  // 2. Cascade deletion across all 13 tracked tables in foreign-key safe order
+  // Dependent/child records purged first, then parent tables
+  const PURGE_ORDER = [
+    'device_location_pings',
+    'mobility_timeline_events',
+    'daily_mobility_stats',
+    'saved_places',
+    'tasks',
+    'personal_assets',
+    'subscriptions',
+    'contacts_ledger',
+    'transactions',
+    'budgets',
+    'user_device_sessions',
+    'accounts',
+    'categories',
+  ];
+
+  for (const tableName of PURGE_ORDER) {
+    const item = TRACKED_TABLES.find((t) => t.table === tableName) || {
+      table: tableName,
+      name: tableName,
+      category: 'core' as const,
+    };
+
     try {
       let deleteQuery = supabase.from(item.table).delete();
       const col = item.table === 'user_device_sessions' ? 'user_id' : 'id';
 
       if (scope === 'user' && userId) {
-        deleteQuery = deleteQuery.eq('user_id', userId);
+        if (item.table === 'categories') {
+          deleteQuery = deleteQuery.eq('user_id', userId).eq('is_default', false);
+        } else {
+          deleteQuery = deleteQuery.eq('user_id', userId);
+        }
       } else {
-        // Global refresh: purge all rows in the table
-        deleteQuery = deleteQuery.neq(col, '00000000-0000-0000-0000-000000000000');
+        // Global refresh: purge all rows in the table (preserving default categories)
+        if (item.table === 'categories') {
+          deleteQuery = deleteQuery.eq('is_default', false);
+        } else {
+          deleteQuery = deleteQuery.neq(col, '00000000-0000-0000-0000-000000000000');
+        }
       }
 
       const { error } = await deleteQuery;

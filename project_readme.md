@@ -38,7 +38,7 @@ Most finance apps operate in isolation—they only track historical debits and c
 | **Social Ledger & Split** | P2P debt tracking and group bill splitter with equal/exact/% modes and instant payment links (UPI, Venmo, PayPal, CashApp) | 1-Click settlement and direct ledger sync without requiring friends to install the app |
 | **Two-Row Navigation** | Row 1 (Identity & System Controls) + Row 2 (10-Module Tab Ribbon) | Auto-scroll centering, gradient overflow fade masks, and mobile slide-over drawer |
 | **Strict Admin Portal** | Platform telemetry, audit logs, and 1-click database refresh | Restricted strictly to `layanmoyura@proton.me`; discrete `Ctrl+Shift+A` / `#admin` access |
-| **Zero-Data DB Purge** | 1-Click platform/workspace database purge across all 11 tables | Resets accounts to `0.00`, wipes stale `localStorage`, and preserves user auth accounts |
+| **Zero-Data DB Purge** | 1-Click platform/workspace database purge across all 13 tables | Resets accounts to `0.00`, wipes stale `localStorage`, and preserves user auth accounts |
 | **Device Sentinel** | Single active device login enforcement & device-bound location telemetry isolation | Hardware UUID, session takeover guard, and continuous heartbeat sentinel |
 | **Help & Guide** | Comprehensive user-facing tutorial with step-by-step interactive instructions | Mobile swipeable chapter navigator, non-technical instructions |
 | **Module Reset Controls**| Independent 1-click Reset button per subsystem with confirmation dialogs | In-place deletion and calibration for all individual modules |
@@ -59,9 +59,10 @@ Most finance apps operate in isolation—they only track historical debits and c
   • accounts          • saved_places                         │
   • transactions      • mobility_timeline_events             ▼
   • budgets           • daily_mobility_stats            [ Google Gemini AI ]
-  • tasks             • user_device_sessions            (Gemini Flash 2.0 / 2.5)
-  • personal_assets   • categories                           │
-  • subscriptions     • contacts_ledger                      │
+  • tasks             • device_location_pings           (Gemini Flash 2.0 / 2.5)
+  • personal_assets   • user_device_sessions                 │
+  • subscriptions     • categories                           │
+  • contacts_ledger                                          │
      │                                                       │
      └──────────────────────(Direct Cloud Sync)──────────────┘
 ```

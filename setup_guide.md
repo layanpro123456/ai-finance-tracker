@@ -96,7 +96,7 @@ Apex LifeOS enforces strict role-based access control (RBAC):
 
 ### Performing a Clean Database Refresh (Zero-Hallucination Reset):
 In the Admin Portal:
-1. View live record counts across all 11 tables under **Database Diagnostics**.
+1. View live record counts across all 13 tables under **Database Diagnostics**.
 2. Click **Execute Global Database Refresh**.
 3. All mock/stale records will be purged, all `localStorage` caches will be flushed, and user accounts will be re-initialized to strictly `0.00` balance.
 

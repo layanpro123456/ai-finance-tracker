@@ -15,6 +15,7 @@ BEGIN
     -- 1. Cascade delete all personal financial records
     DELETE FROM public.transactions WHERE user_id = target_user_id;
     DELETE FROM public.budgets WHERE user_id = target_user_id;
+    DELETE FROM public.categories WHERE user_id = target_user_id AND is_default = FALSE;
 
     -- 2. Cascade delete all ERP expansion records
     DELETE FROM public.tasks WHERE user_id = target_user_id;
@@ -23,6 +24,7 @@ BEGIN
     DELETE FROM public.contacts_ledger WHERE user_id = target_user_id;
 
     -- 3. Cascade delete all location & mobility tracking records
+    DELETE FROM public.device_location_pings WHERE user_id = target_user_id;
     DELETE FROM public.saved_places WHERE user_id = target_user_id;
     DELETE FROM public.mobility_timeline_events WHERE user_id = target_user_id;
     DELETE FROM public.daily_mobility_stats WHERE user_id = target_user_id;

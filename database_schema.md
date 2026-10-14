@@ -246,14 +246,35 @@ CREATE TABLE IF NOT EXISTS public.daily_mobility_stats (
     UNIQUE(user_id, stat_date)
 );
 
+-- Device Location Pings (Companion Android APK Telemetry Beacon)
+CREATE TABLE IF NOT EXISTS public.device_location_pings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    device_id TEXT NOT NULL,
+    device_name TEXT,
+    latitude DOUBLE PRECISION NOT NULL,
+    longitude DOUBLE PRECISION NOT NULL,
+    altitude DOUBLE PRECISION,
+    accuracy_meters REAL,
+    speed_kmh REAL DEFAULT 0,
+    heading REAL,
+    battery_level REAL,
+    is_charging BOOLEAN DEFAULT FALSE,
+    transport_mode TEXT DEFAULT 'unknown',
+    recorded_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Mobility Row Level Security (RLS)
 ALTER TABLE public.saved_places ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.mobility_timeline_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.daily_mobility_stats ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.device_location_pings ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users manage own saved places" ON public.saved_places FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Users manage own mobility events" ON public.mobility_timeline_events FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Users manage own mobility stats" ON public.daily_mobility_stats FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users manage own location pings" ON public.device_location_pings FOR ALL USING (auth.uid() = user_id);
 
 -- Performance & Hardware Isolation Indexes
 CREATE INDEX IF NOT EXISTS idx_saved_places_user ON public.saved_places(user_id);
@@ -262,6 +283,8 @@ CREATE INDEX IF NOT EXISTS idx_mobility_events_user_time ON public.mobility_time
 CREATE INDEX IF NOT EXISTS idx_mobility_events_device ON public.mobility_timeline_events(user_id, device_id, start_time DESC);
 CREATE INDEX IF NOT EXISTS idx_mobility_stats_user_date ON public.daily_mobility_stats(user_id, stat_date DESC);
 CREATE INDEX IF NOT EXISTS idx_daily_mobility_stats_device ON public.daily_mobility_stats(user_id, device_id, stat_date DESC);
+CREATE INDEX IF NOT EXISTS idx_device_pings_user_time ON public.device_location_pings(user_id, recorded_at DESC);
+CREATE INDEX IF NOT EXISTS idx_device_pings_device_time ON public.device_location_pings(device_id, recorded_at DESC);
 
 -- ================================================================
 -- 12. Single-Device Session Enforcement
@@ -301,6 +324,7 @@ BEGIN
     -- 1. Cascade delete all personal financial records
     DELETE FROM public.transactions WHERE user_id = target_user_id;
     DELETE FROM public.budgets WHERE user_id = target_user_id;
+    DELETE FROM public.categories WHERE user_id = target_user_id AND is_default = FALSE;
 
     -- 2. Cascade delete all ERP expansion records
     DELETE FROM public.tasks WHERE user_id = target_user_id;
@@ -309,6 +333,7 @@ BEGIN
     DELETE FROM public.contacts_ledger WHERE user_id = target_user_id;
 
     -- 3. Cascade delete all location & mobility tracking records
+    DELETE FROM public.device_location_pings WHERE user_id = target_user_id;
     DELETE FROM public.saved_places WHERE user_id = target_user_id;
     DELETE FROM public.mobility_timeline_events WHERE user_id = target_user_id;
     DELETE FROM public.daily_mobility_stats WHERE user_id = target_user_id;
@@ -336,9 +361,9 @@ $$;
 
 ---
 
-## 📋 Comprehensive 11-Table Architecture Inventory
+## 📋 Comprehensive 13-Table Architecture Inventory
 
-All 11 operational tables implement PostgreSQL Row-Level Security (RLS) guaranteeing strict multi-tenant isolation:
+All 13 operational tables implement PostgreSQL Row-Level Security (RLS) guaranteeing strict multi-tenant isolation:
 
 | # | Table Name | Description | Primary Key | Key Foreign Keys |
 | :--- | :--- | :--- | :--- | :--- |
@@ -353,7 +378,8 @@ All 11 operational tables implement PostgreSQL Row-Level Security (RLS) guarante
 | 9 | `saved_places` | Geofence waypoints, trigger types & proximity alerts | `id (UUID)` | `user_id`, `category_id`, `linked_task_id`, `linked_contact_id` |
 | 10 | `mobility_timeline_events` | Velocity legs, transit modes & commute expenses | `id (UUID)` | `user_id` |
 | 11 | `daily_mobility_stats` | Daily distance, transit time & fuel/fare logs | `id (UUID)` | `user_id` |
-| 12 | `user_device_sessions` | Active hardware device lock (1 active device / user) | `user_id (UUID)` | `user_id -> auth.users(id)` |
+| 12 | `device_location_pings` | Android Companion APK GPS fixes, telemetry & battery | `id (UUID)` | `user_id -> auth.users(id)` |
+| 13 | `user_device_sessions` | Active hardware device lock (1 active device / user) | `user_id (UUID)` | `user_id -> auth.users(id)` |
 
 ---
 

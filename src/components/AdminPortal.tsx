@@ -23,6 +23,7 @@ import {
   Check,
   Loader2,
   HardDrive,
+  Globe,
 } from 'lucide-react';
 import {
   getPlatformUsers,
@@ -97,6 +98,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   // Database diagnostics & full refresh state
   const [diagnostics, setDiagnostics] = useState<DatabaseDiagnostics | null>(null);
+  const [diagnosticsScope, setDiagnosticsScope] = useState<'global' | 'workspace'>('global');
+  const [tableCategoryFilter, setTableCategoryFilter] = useState<'all' | 'core' | 'erp' | 'mobility' | 'system'>('all');
+  const [tableSearchQuery, setTableSearchQuery] = useState('');
   const [isLoadingDiagnostics, setIsLoadingDiagnostics] = useState(false);
   const [showRefreshModal, setShowRefreshModal] = useState(false);
   const [refreshConfirmInput, setRefreshConfirmInput] = useState('');
@@ -105,17 +109,29 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [refreshProgressStep, setRefreshProgressStep] = useState<string>('');
 
   const fetchDiagnostics = useCallback(async () => {
-    if (!currentUserId) return;
     setIsLoadingDiagnostics(true);
     try {
-      const diag = await getDatabaseDiagnostics(currentUserId);
+      const targetUser = diagnosticsScope === 'workspace' ? currentUserId : undefined;
+      const diag = await getDatabaseDiagnostics(targetUser);
       setDiagnostics(diag);
     } catch (err) {
       console.error('Error fetching database diagnostics:', err);
     } finally {
       setIsLoadingDiagnostics(false);
     }
-  }, [currentUserId]);
+  }, [diagnosticsScope, currentUserId]);
+
+  const filteredTables = useMemo(() => {
+    if (!diagnostics?.tables) return [];
+    return diagnostics.tables.filter((tbl) => {
+      const matchesCategory = tableCategoryFilter === 'all' || tbl.category === tableCategoryFilter;
+      const matchesQuery =
+        !tableSearchQuery.trim() ||
+        tbl.table.toLowerCase().includes(tableSearchQuery.toLowerCase()) ||
+        tbl.name.toLowerCase().includes(tableSearchQuery.toLowerCase());
+      return matchesCategory && matchesQuery;
+    });
+  }, [diagnostics?.tables, tableCategoryFilter, tableSearchQuery]);
 
   useEffect(() => {
     if (activeTab === 'database' || showRefreshModal) {
@@ -663,7 +679,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         <div className="space-y-6">
           {/* Zero Hallucination Guarantee Card */}
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div>
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-semibold mb-2">
                   <CheckCircle2 className="w-3.5 h-3.5" />
@@ -677,14 +693,41 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Scope Selector: Platform-Wide vs Workspace */}
+                <div className="p-1 rounded-xl bg-slate-950 border border-slate-800 flex items-center text-xs">
+                  <button
+                    onClick={() => setDiagnosticsScope('global')}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                      diagnosticsScope === 'global'
+                        ? 'bg-purple-600 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <Globe className="w-3.5 h-3.5" />
+                    <span>Platform-Wide</span>
+                  </button>
+                  <button
+                    onClick={() => setDiagnosticsScope('workspace')}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                      diagnosticsScope === 'workspace'
+                        ? 'bg-purple-600 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                    <span>My Workspace</span>
+                  </button>
+                </div>
+
                 <button
                   onClick={fetchDiagnostics}
                   disabled={isLoadingDiagnostics}
                   className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer border border-slate-700 disabled:opacity-50"
+                  title="Rescan table row counts"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isLoadingDiagnostics ? 'animate-spin text-purple-400' : ''}`} />
-                  <span>Scan DB Records</span>
+                  <span>Scan</span>
                 </button>
                 <button
                   onClick={() => {
@@ -707,7 +750,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <span className="text-2xl font-bold text-white tracking-tight mt-1 block">
                   {diagnostics?.totalRecords ?? 0}
                 </span>
-                <span className="text-[10px] text-slate-500 font-mono">Across all tables</span>
+                <span className="text-[10px] text-slate-500 font-mono">
+                  {diagnosticsScope === 'global' ? 'Across all users' : 'Current workspace'}
+                </span>
               </div>
               <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800/80">
                 <span className="text-[11px] font-medium text-slate-400 block">Database Status</span>
@@ -715,40 +760,82 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   <span className="w-2 h-2 rounded-full bg-emerald-400" />
                   <span>{(diagnostics?.totalRecords ?? 0) === 0 ? 'Clean Slate' : 'Active Data'}</span>
                 </span>
-                <span className="text-[10px] text-slate-500 font-mono">Row-Level Security Active</span>
+                <span className="text-[10px] text-slate-500 font-mono">RLS Policies Enforced</span>
               </div>
               <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800/80">
                 <span className="text-[11px] font-medium text-slate-400 block">Tracked Tables</span>
                 <span className="text-2xl font-bold text-white tracking-tight mt-1 block">
-                  {diagnostics?.tables.length ?? 11}
+                  {diagnostics?.tables.length ?? 13}
                 </span>
-                <span className="text-[10px] text-slate-500 font-mono">Public ERP Schemas</span>
+                <span className="text-[10px] text-slate-500 font-mono">13 Public PostgreSQL Tables</span>
               </div>
               <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800/80">
-                <span className="text-[11px] font-medium text-slate-400 block">Sample Seeding</span>
-                <span className="text-2xl font-bold text-rose-400 tracking-tight mt-1 block">
-                  Disabled
+                <span className="text-[11px] font-medium text-slate-400 block">Inspection Scope</span>
+                <span className="text-2xl font-bold text-purple-400 tracking-tight mt-1 block">
+                  {diagnosticsScope === 'global' ? 'Global' : 'Workspace'}
                 </span>
-                <span className="text-[10px] text-emerald-400 font-medium">100% Genuine Metrics</span>
+                <span className="text-[10px] text-emerald-400 font-medium">
+                  {diagnosticsScope === 'global' ? 'All Platform Rows' : 'Targeted User Rows'}
+                </span>
               </div>
             </div>
           </div>
 
           {/* Detailed Module Table Inspection */}
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
               <div>
                 <h4 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
                   <HardDrive className="w-4 h-4 text-purple-400" />
-                  <span>Module Row Counts &amp; Schema Telemetry</span>
+                  <span>All PostgreSQL Tables &amp; Telemetry ({diagnostics?.tables.length ?? 13})</span>
                 </h4>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Real-time record counts for each isolated database table in this member workspace.
+                  {diagnosticsScope === 'global'
+                    ? 'Displaying real-time record counts for all 13 tables across the entire platform.'
+                    : 'Displaying real-time record counts isolated to your member workspace.'}
                 </p>
               </div>
-              <span className="text-[11px] font-mono text-slate-500">
+              <span className="text-[11px] font-mono text-slate-500 self-start md:self-auto">
                 Last checked: {diagnostics?.lastChecked ? new Date(diagnostics.lastChecked).toLocaleTimeString() : 'Just now'}
               </span>
+            </div>
+
+            {/* Filter Pills & Search Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+              <div className="flex items-center gap-1.5 flex-wrap text-xs">
+                {(
+                  [
+                    { id: 'all', label: `All (${diagnostics?.tables.length ?? 13})` },
+                    { id: 'core', label: 'Core Ledger (4)' },
+                    { id: 'erp', label: 'Personal ERP (4)' },
+                    { id: 'mobility', label: 'Mobility & Telemetry (4)' },
+                    { id: 'system', label: 'Security & Sessions (1)' },
+                  ] as const
+                ).map((cat) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setTableCategoryFilter(cat.id)}
+                    className={`px-2.5 py-1 rounded-lg font-medium transition cursor-pointer text-xs ${
+                      tableCategoryFilter === cat.id
+                        ? 'bg-purple-600 text-white font-bold'
+                        : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="relative min-w-[200px]">
+                <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Filter tables..."
+                  value={tableSearchQuery}
+                  onChange={(e) => setTableSearchQuery(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                />
+              </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -756,30 +843,46 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <thead>
                   <tr className="border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
                     <th className="py-2.5 px-3">Table Identifier</th>
+                    <th className="py-2.5 px-3">Subsystem</th>
                     <th className="py-2.5 px-3">Module Description</th>
                     <th className="py-2.5 px-3 text-center">Row Count</th>
                     <th className="py-2.5 px-3 text-right">Database State</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-850">
-                  {diagnostics?.tables.map((tbl) => (
+                  {filteredTables.map((tbl) => (
                     <tr key={tbl.table} className="hover:bg-slate-850/40 transition">
-                      <td className="py-2.5 px-3 font-mono text-purple-300">
+                      <td className="py-2.5 px-3 font-mono text-purple-300 font-medium">
                         public.{tbl.table}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            tbl.category === 'core'
+                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                              : tbl.category === 'erp'
+                              ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                              : tbl.category === 'mobility'
+                              ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+                              : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                          }`}
+                        >
+                          {tbl.category}
+                        </span>
                       </td>
                       <td className="py-2.5 px-3 text-slate-200">
                         {tbl.name}
                       </td>
-                      <td className="py-2.5 px-3 text-center font-bold text-white font-mono">
+                      <td className="py-2.5 px-3 text-center font-bold text-white font-mono text-sm">
                         {tbl.count}
                       </td>
                       <td className="py-2.5 px-3 text-right">
                         {tbl.count === 0 ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 text-[10px] font-medium border border-slate-700">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 text-[10px] font-medium border border-slate-700">
                             Clean Slate
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-300 text-[10px] font-semibold border border-purple-500/25">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-300 text-[10px] font-semibold border border-purple-500/25">
                             {tbl.count} Records Active
                           </span>
                         )}
@@ -1030,7 +1133,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2 text-[11px]">
                   <span className="font-semibold text-slate-300 block">Actions that will be executed:</span>
                   <ul className="space-y-1.5 text-slate-400 list-disc list-inside">
-                    <li>Purge 11 PostgreSQL database tables across entire platform</li>
+                    <li>Purge all 13 PostgreSQL database tables across entire platform (preserving system taxonomy defaults)</li>
                     <li><strong className="text-emerald-400 font-semibold">Preserve admin and authentication accounts</strong> in <code className="text-purple-300 font-mono">auth.users</code></li>
                     <li>Wipe device-scoped mobility caches, mock coordinates, and streak history</li>
                     <li>Ensure every member starting account starts strictly at balance <code className="text-emerald-400 font-mono">0.00</code></li>

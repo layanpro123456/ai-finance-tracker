@@ -94,7 +94,7 @@ Traditional personal finance apps only track what you spent *after* you've alrea
   * Keyboard shortcut: `Ctrl + Shift + A` (or `Cmd + Shift + A` on macOS)
   * URL hash: `#admin`
   * System Settings: Admin Portal link rendered strictly when logged in as `layanmoyura@proton.me`
-* **1-Click Platform & Workspace Refresh**: Full database purge capability that wipes all 11 operational tables, clears stale browser `localStorage`, and guarantees primary accounts start at strictly `0.00` balance with zero artificial sample data.
+* **1-Click Platform & Workspace Refresh**: Full database purge capability that wipes all 13 operational tables, clears stale browser `localStorage`, and guarantees primary accounts start at strictly `0.00` balance with zero artificial sample data.
 
 ### 9. 🎨 Dual Themes & Complete Localization
 * High-contrast OLED **Dark Mode** and clean **Light Mode**.
@@ -269,7 +269,7 @@ VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
 
 ### 3. Initialize Database Tables
-Execute the complete SQL definitions from [database_schema.md](database_schema.md) in your **Supabase SQL Editor** to initialize all 11 tables and Row-Level Security (RLS) policies.
+Execute the complete SQL definitions from [database_schema.md](database_schema.md) in your **Supabase SQL Editor** to initialize all 13 tables and Row-Level Security (RLS) policies.
 
 ### 4. Launch Development Server
 ```bash
