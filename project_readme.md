@@ -31,6 +31,7 @@ Most finance apps operate in isolation—they only track historical debits and c
 | **Tax Mileage Engine** | Work vs. Personal trip classification, standard mileage tax deductions (IRS/CRA/HMRC), CSV export & printable reimbursement reports | Accrued tax write-off calculator with configurable rates & units (km/mi) |
 | **Geofenced Places** | Saved waypoints with proximity radii triggering contextual payment alerts on arrival | Integrated with Budgets, Tasks & IOUs; responsive top proximity banner |
 | **Financial Accounts** | Multi-account balance sheets (Checking, Savings, Cash, Credit Card) | Strict `0.00` starting balance policy; zero hallucinated funds |
+| **Cash & ATM Vault** | In-hand physical cash wallet tracking, 1-click ATM withdrawals with bank auto-transfer, cash deposits, and bill denomination audits | Dedicated cash wallet balance, petty cash logging, and physical wallet reconciliation |
 | **Category Budgets** | Monthly category caps with interactive visual spending gauges | Progress tracking and over-budget warnings |
 | **Asset Vault** | Fixed assets (electronics, vehicles, tools) feeding into Net Worth | Purchase price, current value, and warranty expiration countdowns |
 | **Subscriptions** | Monthly & annual recurring commitments with renewal countdown | Active account links, direct cancellation URLs to prevent subscription creep |

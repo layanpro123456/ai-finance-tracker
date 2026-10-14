@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { Account } from '../types';
 import { supabase } from '../supabaseClient';
 import { usePreferences, CURRENCIES } from '../context/PreferencesContext';
-import { Wallet, Plus, Trash2, AlertCircle, Loader2, RotateCcw } from 'lucide-react';
+import { Wallet, Plus, Trash2, AlertCircle, Loader2, RotateCcw, Banknote } from 'lucide-react';
 import { CurrencyLogo } from './CurrencyLogo';
 
 interface AccountManagerProps {
@@ -162,7 +162,15 @@ export const AccountManager: React.FC<AccountManagerProps> = ({
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="font-semibold text-white text-sm">{acc.name}</h3>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h3 className="font-semibold text-white text-sm">{acc.name}</h3>
+                    {/\b(cash|in-hand|wallet|petty)\b/i.test(acc.name) && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                        <Banknote className="w-2.5 h-2.5" />
+                        <span>In-Hand Cash</span>
+                      </span>
+                    )}
+                  </div>
                   <span className="text-xs text-slate-500 uppercase tracking-wider font-mono">
                     {acc.currency}
                   </span>
@@ -218,6 +226,19 @@ export const AccountManager: React.FC<AccountManagerProps> = ({
                   onChange={(e) => setName(e.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                 />
+                <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                  <span className="text-[10px] text-slate-500">Presets:</span>
+                  {['Checking Account', 'Savings Account', 'In-Hand Cash (Physical Wallet)', 'Credit Card'].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setName(preset)}
+                      className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition cursor-pointer"
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>

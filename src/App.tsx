@@ -16,6 +16,7 @@ import { MetricCards } from './components/MetricCards';
 import { PredictiveCashFlow } from './components/PredictiveCashFlow';
 import { AiTransactionInput } from './components/AiTransactionInput';
 import { AccountManager } from './components/AccountManager';
+import { CashManager } from './components/CashManager';
 import { TransactionList } from './components/TransactionList';
 import { BudgetManager } from './components/BudgetManager';
 import { TaskManager } from './components/TaskManager';
@@ -711,6 +712,21 @@ export function App() {
               userId={user.id}
               accounts={accounts}
               onAccountUpdated={fetchData}
+            />
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* IN-HAND CASH & ATM VAULT TAB */}
+        {/* ========================================================================= */}
+        {activeTab === 'cash' && (
+          <div className="space-y-6">
+            <CashManager
+              userId={user.id}
+              accounts={accounts}
+              categories={categories}
+              transactions={transactions}
+              onDataUpdated={fetchData}
             />
           </div>
         )}

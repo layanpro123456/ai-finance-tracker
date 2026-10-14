@@ -22,6 +22,7 @@ import {
   Menu,
   X,
   Layers,
+  Banknote,
 } from 'lucide-react';
 import { getDeviceName } from '../services/deviceSessionService';
 
@@ -29,6 +30,7 @@ export type ErpTab =
   | 'dashboard'
   | 'transactions'
   | 'accounts'
+  | 'cash'
   | 'budgets'
   | 'tasks'
   | 'timeline'
@@ -81,7 +83,8 @@ export const Navbar: React.FC<NavbarProps> = ({
       description: 'Device GPS & Route Stats',
     },
     { id: 'transactions', label: 'Ledger', icon: <Receipt className="w-4 h-4" />, description: 'Financial Entries & History' },
-    { id: 'accounts', label: 'Accounts', icon: <Wallet className="w-4 h-4" />, description: 'Banks, Cards & Cash' },
+    { id: 'accounts', label: 'Accounts', icon: <Wallet className="w-4 h-4" />, description: 'Banks, Cards & Balances' },
+    { id: 'cash', label: 'Cash & ATM', icon: <Banknote className="w-4 h-4 text-emerald-400" />, description: 'In-Hand Wallet & ATM Withdrawals' },
     { id: 'budgets', label: 'Budgets', icon: <PieChart className="w-4 h-4" />, description: 'Monthly Category Targets' },
     { id: 'assets', label: 'Assets', icon: <Package className="w-4 h-4" />, description: 'Vault & Physical Property' },
     { id: 'subscriptions', label: 'Subscriptions', icon: <CreditCard className="w-4 h-4" />, description: 'Recurring Payment Cycles' },

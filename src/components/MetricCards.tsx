@@ -59,6 +59,13 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
 
   const netSavings = monthlyIncome - monthlyExpense;
 
+  // In-Hand Cash breakdown
+  const inHandCashBalance = accounts
+    .filter((a) => /\b(cash|in-hand|wallet|petty)\b/i.test(a.name))
+    .reduce((sum, a) => sum + Number(a.balance || 0), 0);
+
+  const bankLiquidBalance = Math.max(0, liquidBalance - inHandCashBalance);
+
   const { formatCurrency } = usePreferences();
 
   return (
@@ -78,7 +85,13 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
             {formatCurrency(totalNetWorth)}
           </div>
           <div className="text-[11px] text-slate-400 mt-1 flex flex-wrap gap-1.5 items-center">
-            <span>Liquid: {formatCurrency(liquidBalance)}</span>
+            <span>Bank: {formatCurrency(bankLiquidBalance)}</span>
+            {inHandCashBalance > 0 && (
+              <>
+                <span>•</span>
+                <span className="text-emerald-400 font-medium">Cash: {formatCurrency(inHandCashBalance)}</span>
+              </>
+            )}
             {activeAssetsValue > 0 && (
               <>
                 <span>•</span>
