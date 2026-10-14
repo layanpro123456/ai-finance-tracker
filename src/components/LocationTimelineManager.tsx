@@ -63,17 +63,11 @@ import {
   Copy,
   Check,
   QrCode,
-  Eye,
-  EyeOff,
   Lock,
-  Shield,
 } from 'lucide-react';
 import {
   generatePairingToken,
   generatePairingQrDataUrl,
-  maskSupabaseUrl,
-  maskSecretKey,
-  maskUuid,
 } from '../services/mobilePairingService';
 
 interface LocationTimelineManagerProps {
@@ -112,8 +106,6 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
   const [trackingSource, setTrackingSource] = useState<'simulation' | 'real_gps' | 'phone_apk'>('phone_apk');
   const [latestPhonePing, setLatestPhonePing] = useState<DeviceLocationPing | null>(null);
   const [showPairPhoneModal, setShowPairPhoneModal] = useState(false);
-  const [copiedCredentials, setCopiedCredentials] = useState(false);
-  const [revealCredentials, setRevealCredentials] = useState(false);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
   const [copiedToken, setCopiedToken] = useState(false);
 
@@ -1817,115 +1809,7 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
               </p>
             </div>
 
-            {/* Zero-Exposure Parameter Inspection Section */}
-            <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
-                  <Shield className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Connection Parameters</span>
-                  {copiedCredentials && <span className="text-[10px] text-emerald-400 font-normal">Copied!</span>}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setRevealCredentials(!revealCredentials)}
-                  className="text-slate-400 hover:text-slate-200 text-xs flex items-center gap-1 cursor-pointer"
-                >
-                  {revealCredentials ? (
-                    <>
-                      <EyeOff className="w-3.5 h-3.5 text-slate-400" />
-                      <span>Mask Values</span>
-                    </>
-                  ) : (
-                    <>
-                      <Eye className="w-3.5 h-3.5 text-emerald-400" />
-                      <span className="text-emerald-400">Reveal Plaintext</span>
-                    </>
-                  )}
-                </button>
-              </div>
 
-              <div className="space-y-2 text-xs">
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-0.5">
-                    Supabase Project Endpoint
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      readOnly
-                      value={revealCredentials ? (supabaseUrl || 'https://your-project.supabase.co') : maskSupabaseUrl(supabaseUrl)}
-                      className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 font-mono text-emerald-400 text-[11px] select-all"
-                    />
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(supabaseUrl);
-                        setCopiedCredentials(true);
-                        setTimeout(() => setCopiedCredentials(false), 2000);
-                      }}
-                      className="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] flex items-center gap-1 cursor-pointer"
-                      title="Copy endpoint"
-                    >
-                      <Copy className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-0.5">
-                    Anon Public Key (Restricted to Telemetry Inserts)
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      readOnly
-                      value={revealCredentials ? (supabaseAnonKey || 'your-anon-key') : maskSecretKey(supabaseAnonKey)}
-                      className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 font-mono text-slate-300 text-[11px] select-all"
-                    />
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(supabaseAnonKey);
-                        setCopiedCredentials(true);
-                        setTimeout(() => setCopiedCredentials(false), 2000);
-                      }}
-                      className="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] flex items-center gap-1 cursor-pointer"
-                      title="Copy anon key"
-                    >
-                      <Copy className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-0.5">
-                    User Auth UUID (Isolated Multi-Tenant Partition)
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      readOnly
-                      value={revealCredentials ? (userId || '') : maskUuid(userId)}
-                      className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 font-mono text-cyan-400 text-[11px] select-all"
-                    />
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(userId);
-                        setCopiedCredentials(true);
-                        setTimeout(() => setCopiedCredentials(false), 2000);
-                      }}
-                      className="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] flex items-center gap-1 cursor-pointer"
-                      title="Copy user ID"
-                    >
-                      <Copy className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span>Zero-exposure active. Screen recorders and viewers cannot read masked values.</span>
-              </div>
-            </div>
 
             {/* Step-by-Step Instructions */}
             <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/80 space-y-2 text-xs text-slate-300">

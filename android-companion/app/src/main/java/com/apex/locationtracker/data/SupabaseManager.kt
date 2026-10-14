@@ -131,6 +131,17 @@ class SupabaseManager(private val context: Context) {
     }
 
     /**
+     * Clears stored encrypted Supabase credentials
+     */
+    fun clearCredentials() {
+        prefs.edit()
+            .remove(KEY_SUPABASE_URL)
+            .remove(KEY_ANON_KEY)
+            .remove(KEY_USER_ID)
+            .apply()
+    }
+
+    /**
      * Safely returns masked project URL for UI rendering
      */
     fun getMaskedUrl(): String {

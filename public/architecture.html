@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Apex LifeOS — System Architecture Blueprint</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #030712;
+      color: #f3f4f6;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .glass-card {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .glow-cyan {
+      box-shadow: 0 0 35px -8px rgba(6, 182, 212, 0.3);
+    }
+    .glow-purple {
+      box-shadow: 0 0 35px -8px rgba(168, 85, 247, 0.35);
+    }
+    .glow-emerald {
+      box-shadow: 0 0 35px -8px rgba(16, 185, 129, 0.3);
+    }
+    .grid-bg {
+      background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+    @media print {
+      .no-print { display: none !important; }
+      body { background-color: #030712 !important; -webkit-print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-[#030712] text-slate-100 flex flex-col items-center justify-center p-4 sm:p-10">
+
+  <!-- Download & Action Ribbon -->
+  <div class="no-print w-full max-w-6xl flex items-center justify-between mb-6 pb-3 border-b border-slate-800/80">
+    <div class="flex items-center gap-3">
+      <div class="w-3 h-3 rounded-full bg-emerald-400 animate-ping"></div>
+      <span class="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">
+        Apex LifeOS • LinkedIn Visual Blueprint
+      </span>
+    </div>
+    <div class="flex items-center gap-3">
+      <button id="downloadBtn" onclick="exportToImage()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-bold text-xs flex items-center gap-2 transition cursor-pointer shadow-lg shadow-emerald-500/25">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+        <span id="btnText">Download HD Image (PNG)</span>
+      </button>
+      <button onclick="window.print()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition">
+        Print / PDF
+      </button>
+      <a href="./" class="px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 text-xs font-semibold transition">
+        Launch App →
+      </a>
+    </div>
+  </div>
+
+  <!-- Main Architecture Canvas (Optimized for LinkedIn 16:9 & High-Resolution Display) -->
+  <div id="architectureCanvas" class="w-full max-w-6xl bg-gradient-to-b from-[#070d1d] via-[#050914] to-[#02050c] border border-slate-800/80 rounded-3xl p-8 sm:p-12 shadow-2xl relative overflow-hidden grid-bg">
+    
+    <!-- Ambient Glow Spots -->
+    <div class="absolute -top-32 -left-32 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute top-1/3 -right-32 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-32 left-1/3 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+    <!-- Top Blueprint Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between pb-8 mb-8 border-b border-slate-800/80 gap-4 relative z-10">
+      <div>
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[11px] font-mono text-emerald-300 font-bold tracking-wider uppercase mb-3">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          System Architecture &amp; Data Pipeline
+        </div>
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight flex items-center gap-3">
+          APEX <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400">LIFEOS</span>
+          <span class="text-xs font-mono font-medium px-2.5 py-1 rounded-lg bg-slate-800/90 text-slate-300 border border-slate-700">v2.4 High</span>
+        </h1>
+        <p class="text-xs sm:text-sm text-slate-400 mt-1">
+          High-throughput Personal ERP connecting Financial Balances, Spatial Telemetry, and AI Cognition
+        </p>
+      </div>
+
+      <!-- Tech Badges -->
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="px-3 py-1.5 rounded-xl bg-purple-950/60 border border-purple-500/40 text-purple-300 text-xs font-mono font-bold flex items-center gap-1.5 shadow-md shadow-purple-500/10">
+          <span class="text-sm">✨</span> Gemini 3.8 Flash (High)
+        </div>
+        <div class="px-3 py-1.5 rounded-xl bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 text-xs font-mono font-bold flex items-center gap-1.5">
+          <span class="text-sm">⚛️</span> React 18 + TS
+        </div>
+        <div class="px-3 py-1.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs font-mono font-bold flex items-center gap-1.5">
+          <span class="text-sm">⚡</span> Supabase RLS
+        </div>
+      </div>
+    </div>
+
+    <!-- 3-Column Architecture Matrix -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 relative z-10">
+
+      <!-- Column 1: Client & Spatial Engines -->
+      <div class="flex flex-col gap-5">
+        <div class="flex items-center gap-2 pb-1 border-b border-cyan-500/30">
+          <div class="w-6 h-6 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-xs">01</div>
+          <h2 class="text-sm font-bold tracking-wide uppercase font-mono text-cyan-300">Client Layer (PWA)</h2>
+        </div>
+
+        <!-- UI & State Card -->
+        <div class="glass-card rounded-2xl p-5 border-cyan-500/20 glow-cyan space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-cyan-400"></span> React 18 Single Page App
+            </span>
+            <span class="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-500/20">Vite 8</span>
+          </div>
+          <div class="space-y-1.5 text-xs text-slate-300">
+            <div class="p-2 rounded-lg bg-slate-900/60 border border-slate-800 flex justify-between">
+              <span>Financial Ledger &amp; Accounts</span>
+              <span class="font-mono text-emerald-400 font-semibold">40+ Currencies</span>
+            </div>
+            <div class="p-2 rounded-lg bg-slate-900/60 border border-slate-800 flex justify-between">
+              <span>Financial Task Bridge</span>
+              <span class="font-mono text-teal-400 font-semibold">Payables &amp; Incomes</span>
+            </div>
+            <div class="p-2 rounded-lg bg-slate-900/60 border border-slate-800 flex justify-between">
+              <span>Asset Vault &amp; Burn Rate</span>
+              <span class="font-mono text-cyan-400 font-semibold">Net Worth Engine</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Spatial Telemetry Card -->
+        <div class="glass-card rounded-2xl p-5 border-emerald-500/20 glow-emerald space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Mobility Telemetry
+            </span>
+            <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">Spatial GPS</span>
+          </div>
+          <div class="space-y-2 text-xs text-slate-300">
+            <div class="p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+              <strong class="text-emerald-300 block mb-0.5 font-mono text-[11px]">Haversine Velocity Engine</strong>
+              <p class="text-[11px] text-slate-400 leading-tight">Speed hysteresis prevents traffic gridlock from being classified as walking.</p>
+            </div>
+            <div class="p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+              <strong class="text-teal-300 block mb-0.5 font-mono text-[11px]">Geofence Radar Sentinel</strong>
+              <p class="text-[11px] text-slate-400 leading-tight">100m–1500m arrival triggers for supermarket budget alerts &amp; rent prompts.</p>
+            </div>
+            <div class="p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+              <strong class="text-cyan-300 block mb-0.5 font-mono text-[11px]">Desktop Route Simulator</strong>
+              <p class="text-[11px] text-slate-400 leading-tight">Simulate walking, highway transit, and traffic jams with 0–100 km/h slider.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Column 2: Edge & AI Cognition Layer -->
+      <div class="flex flex-col gap-5">
+        <div class="flex items-center gap-2 pb-1 border-b border-purple-500/30">
+          <div class="w-6 h-6 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-xs">02</div>
+          <h2 class="text-sm font-bold tracking-wide uppercase font-mono text-purple-300">AI Reasoning Pipeline</h2>
+        </div>
+
+        <!-- Gemini 3.8 Flash High Showcase Card -->
+        <div class="glass-card rounded-2xl p-6 border-purple-500/40 glow-purple space-y-4 bg-gradient-to-b from-purple-950/40 via-slate-900/80 to-slate-950">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-7 h-7 rounded-lg bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-sm">🧠</span>
+              <div>
+                <h3 class="text-sm font-bold text-white">Google Gemini 3.8 Flash</h3>
+                <span class="text-[10px] font-mono text-purple-300">High-Reasoning Configuration</span>
+              </div>
+            </div>
+            <span class="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-mono font-bold uppercase">&lt; 400ms</span>
+          </div>
+
+          <!-- Flow Step Pills -->
+          <div class="space-y-2.5">
+            <div class="p-3 rounded-xl bg-slate-950/80 border border-purple-500/20">
+              <div class="text-[10px] font-mono text-purple-400 font-bold uppercase">1. Unstructured Input</div>
+              <p class="text-xs text-slate-200 mt-1 italic">"Spent Rs 4,500 on groceries at Keells"</p>
+            </div>
+
+            <div class="flex justify-center">
+              <svg class="w-4 h-4 text-purple-400 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-950/80 border border-purple-500/20">
+              <div class="text-[10px] font-mono text-teal-400 font-bold uppercase">2. Semantic Inference</div>
+              <p class="text-[11px] text-slate-300 mt-1 leading-tight">Extracts merchant, amount, dynamic ISO currency, and maps to user budget categories.</p>
+            </div>
+
+            <div class="flex justify-center">
+              <svg class="w-4 h-4 text-purple-400 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-950/80 border border-purple-500/20 font-mono text-[11px]">
+              <div class="text-[10px] text-emerald-400 font-bold uppercase">3. Structured JSON Schema</div>
+              <pre class="text-[10px] text-emerald-300 mt-1 overflow-x-auto">{
+  "amount": 4500,
+  "currency": "LKR",
+  "category": "Groceries",
+  "type": "expense"
+}</pre>
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-purple-500/20 flex items-center justify-between text-[11px] text-slate-400">
+            <span>Edge Function Gateway</span>
+            <span class="font-mono text-purple-300 font-semibold">Deno Runtime</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Column 3: Storage & Security Infrastructure -->
+      <div class="flex flex-col gap-5">
+        <div class="flex items-center gap-2 pb-1 border-b border-emerald-500/30">
+          <div class="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">03</div>
+          <h2 class="text-sm font-bold tracking-wide uppercase font-mono text-emerald-300">Data &amp; Security Layer</h2>
+        </div>
+
+        <!-- Security Sentinel Card -->
+        <div class="glass-card rounded-2xl p-5 border-amber-500/20 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-amber-400"></span> Hardware Sentinel
+            </span>
+            <span class="text-[10px] font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">Web Crypto</span>
+          </div>
+          <div class="space-y-2 text-xs text-slate-300">
+            <div class="p-2.5 rounded-lg bg-slate-900/60 border border-slate-800">
+              <strong class="text-amber-300 block mb-0.5 font-mono text-[11px]">1-Active-Device Lock</strong>
+              <p class="text-[11px] text-slate-400 leading-tight">Continuous heartbeat sentinel logs out stale devices upon remote transfer.</p>
+            </div>
+            <div class="p-2.5 rounded-lg bg-slate-900/60 border border-slate-800">
+              <strong class="text-amber-300 block mb-0.5 font-mono text-[11px]">Hardware-Partitioned Telemetry</strong>
+              <p class="text-[11px] text-slate-400 leading-tight">GPS velocity fixes and routes are strictly partitioned per unique physical device ID.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Supabase Cloud PostgreSQL Card -->
+        <div class="glass-card rounded-2xl p-5 border-emerald-500/20 glow-emerald space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Supabase PostgreSQL
+            </span>
+            <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">Cloud DB</span>
+          </div>
+          <div class="space-y-1.5 text-xs text-slate-300">
+            <div class="p-2 rounded-lg bg-slate-900/60 border border-slate-800 flex justify-between">
+              <span>Row-Level Security (RLS)</span>
+              <span class="font-mono text-emerald-400 font-semibold">Zero-Knowledge</span>
+            </div>
+            <div class="p-2 rounded-lg bg-slate-900/60 border border-slate-800 flex justify-between">
+              <span>GoTrue Authentication</span>
+              <span class="font-mono text-emerald-400 font-semibold">JWT / PKCE</span>
+            </div>
+            <div class="p-2 rounded-lg bg-slate-900/60 border border-slate-800 flex justify-between">
+              <span>Granular Reset Guards</span>
+              <span class="font-mono text-teal-400 font-semibold">8 Subsystems</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Bottom Specs & Telemetry Ribbon -->
+    <div class="mt-8 pt-6 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-4 relative z-10 text-xs font-mono text-slate-400">
+      <div class="flex items-center gap-4 flex-wrap">
+        <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> Multi-Currency: 40+ ISOs</span>
+        <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-purple-400"></span> Inference: Gemini 3.8 Flash High</span>
+        <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-cyan-400"></span> Offline PWA Ready</span>
+      </div>
+      <div class="text-slate-500 text-[11px]">
+        Designed for High Performance • Open Source MIT
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Export Function Script -->
+  <script>
+    function exportToImage() {
+      const canvasTarget = document.getElementById('architectureCanvas');
+      const btn = document.getElementById('downloadBtn');
+      const btnText = document.getElementById('btnText');
+
+      btnText.innerText = 'Rendering 2K Image...';
+      btn.style.opacity = '0.7';
+
+      html2canvas(canvasTarget, {
+        scale: 2, // High resolution (Retina/2K quality)
+        backgroundColor: '#030712',
+        useCORS: true,
+        logging: false
+      }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = 'ApexLifeOS_Architecture_Blueprint.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+
+        btnText.innerText = 'Downloaded!';
+        btn.style.opacity = '1';
+        setTimeout(() => {
+          btnText.innerText = 'Download HD Image (PNG)';
+        }, 3000);
+      }).catch(err => {
+        console.error(err);
+        btnText.innerText = 'Export Failed';
+        btn.style.opacity = '1';
+      });
+    }
+  </script>
+
+</body>
+</html>
