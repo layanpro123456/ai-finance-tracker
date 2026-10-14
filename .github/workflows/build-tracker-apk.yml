@@ -22,18 +22,25 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Accept Android SDK Licenses & Ensure Components
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+          build-root-directory: android-companion
 
       - name: Grant Execute Permission to Gradle Wrapper
         run: |
-          cd android-companion
-          chmod +x gradlew || true
+          chmod +x android-companion/gradlew || true
 
       - name: Build Debug APK with Gradle
         working-directory: android-companion
         run: |
-          if [ -f "gradlew" ]; then
+          if [ -f "./gradlew" ]; then
             ./gradlew assembleDebug --stacktrace
           else
             gradle assembleDebug --stacktrace
