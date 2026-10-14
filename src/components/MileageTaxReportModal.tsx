@@ -39,10 +39,17 @@ export const MileageTaxReportModal: React.FC<MileageTaxReportModalProps> = ({
   const analyzedTrips = tripEvents.map((ev) => {
     const rawKm = Number(ev.distance_km || 0);
     const convertedDistance = unit === 'miles' ? rawKm * 0.621371 : rawKm;
-    const isBiz = ev.is_business_trip ?? (ev.mode === 'vehicle');
-    const deduction = isBiz ? convertedDistance * rate : 0;
+    const isVehicle = ev.mode === 'vehicle';
+    const isPublicTransit =
+      ev.mode === 'high_speed_transit' ||
+      /\b(train|bus|metro|subway|transit|rail|ferry|tram)\b/i.test(ev.title || '');
+    const isEligibleVehicle = isVehicle && !isPublicTransit;
+    const isBiz = ev.is_business_trip ?? isEligibleVehicle;
 
-    if (isBiz) {
+    // Standard mileage rate (distance * rate) ONLY applies to personal vehicle travel, NOT public transport!
+    const deduction = isBiz && isEligibleVehicle ? convertedDistance * rate : 0;
+
+    if (isBiz && isEligibleVehicle) {
       totalBizDistance += convertedDistance;
       bizCount++;
     } else {
@@ -53,6 +60,8 @@ export const MileageTaxReportModal: React.FC<MileageTaxReportModalProps> = ({
       ...ev,
       convertedDistance,
       isBiz,
+      isPublicTransit,
+      isEligibleVehicle,
       deduction,
     };
   });
@@ -198,20 +207,32 @@ export const MileageTaxReportModal: React.FC<MileageTaxReportModalProps> = ({
                         <td className="py-2 px-3">
                           <span
                             className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                              t.isBiz
+                              t.isPublicTransit
+                                ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/20'
+                                : t.isBiz
                                 ? 'bg-amber-500/10 text-amber-300 border border-amber-500/20'
                                 : 'bg-slate-800 text-slate-400'
                             }`}
                           >
                             <Briefcase className="w-2.5 h-2.5" />
-                            <span>{t.isBiz ? 'Business' : 'Personal'}</span>
+                            <span>
+                              {t.isPublicTransit
+                                ? 'Public Transit'
+                                : t.isBiz
+                                ? 'Business'
+                                : 'Personal'}
+                            </span>
                           </span>
                         </td>
                         <td className="py-2 px-3 text-right text-slate-300 font-mono">
                           {t.convertedDistance.toFixed(2)} {unit}
                         </td>
                         <td className="py-2 px-3 text-right font-mono font-bold">
-                          {t.isBiz ? (
+                          {t.isPublicTransit ? (
+                            <span className="text-slate-500 text-[11px] font-normal" title="Standard mileage rate does not apply to public transit">
+                              N/A (Public Transit)
+                            </span>
+                          ) : t.isBiz ? (
                             <span className="text-emerald-400">
                               +{currencySymbol}{t.deduction.toFixed(2)}
                             </span>

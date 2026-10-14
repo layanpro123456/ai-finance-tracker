@@ -165,7 +165,7 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
     }
   };
 
-  // Cumulative Business Mileage & Tax Deduction Accrued
+  // Cumulative Business Mileage & Tax Deduction Accrued (Excludes Public Transit)
   const tripEvents = useMemo(() => events.filter((e) => e.event_type === 'trip'), [events]);
 
   const { businessDistance, personalDistance, totalAccruedDeduction, businessTripsCount } = useMemo(() => {
@@ -175,8 +175,15 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
 
     tripEvents.forEach((t) => {
       const km = Number(t.distance_km || 0);
-      const isBiz = t.is_business_trip ?? (t.mode === 'vehicle');
-      if (isBiz) {
+      const isVehicle = t.mode === 'vehicle';
+      const isPublic =
+        t.mode === 'high_speed_transit' ||
+        /\b(train|bus|metro|subway|transit|rail|ferry|tram)\b/i.test(t.title || '');
+      const isEligibleVehicle = isVehicle && !isPublic;
+      const isBiz = t.is_business_trip ?? isEligibleVehicle;
+
+      // Distance * rate applies ONLY to personal vehicles, NOT public transport!
+      if (isBiz && isEligibleVehicle) {
         bizKm += km;
         bizCount++;
       } else {
@@ -199,12 +206,22 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
   const handleToggleTripBusiness = async (eventId: string) => {
     const ev = events.find((e) => e.id === eventId);
     if (!ev) return;
-    const isCurrentlyBiz = ev.is_business_trip ?? (ev.mode === 'vehicle');
+    const isVehicle = ev.mode === 'vehicle';
+    const isPublic =
+      ev.mode === 'high_speed_transit' ||
+      /\b(train|bus|metro|subway|transit|rail|ferry|tram)\b/i.test(ev.title || '');
+    const isEligibleVehicle = isVehicle && !isPublic;
+
+    const isCurrentlyBiz = ev.is_business_trip ?? isEligibleVehicle;
     const newBizState = !isCurrentlyBiz;
 
     const km = Number(ev.distance_km || 0);
     const distConverted = taxMileageUnit === 'miles' ? km * 0.621371 : km;
-    const deduction = newBizState ? parseFloat((distConverted * taxDeductionRate).toFixed(2)) : 0;
+    // Standard mileage rate (distance * rate) is NOT applied to public transport!
+    const deduction =
+      newBizState && isEligibleVehicle
+        ? parseFloat((distConverted * taxDeductionRate).toFixed(2))
+        : 0;
 
     const updatedEvent: MobilityTimelineEvent = {
       ...ev,

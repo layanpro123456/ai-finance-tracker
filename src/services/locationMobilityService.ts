@@ -647,8 +647,15 @@ export function exportMileageReportCsv(
     const time = new Date(ev.start_time).toLocaleTimeString();
     const km = ev.distance_km || 0;
     const distanceVal = unit === 'miles' ? km * 0.621371 : km;
-    const isBusiness = ev.is_business_trip ?? (ev.mode === 'vehicle');
-    const deduction = isBusiness ? distanceVal * rate : 0;
+    const isVehicle = ev.mode === 'vehicle';
+    const isPublicTransit =
+      ev.mode === 'high_speed_transit' ||
+      /\b(train|bus|metro|subway|transit|rail|ferry|tram)\b/i.test(ev.title || '');
+    const isEligibleVehicle = isVehicle && !isPublicTransit;
+    const isBusiness = ev.is_business_trip ?? isEligibleVehicle;
+
+    // Standard mileage rate (distance * rate) ONLY applies to eligible vehicles, NOT public transport!
+    const deduction = isBusiness && isEligibleVehicle ? distanceVal * rate : 0;
 
     return [
       `"${date}"`,
@@ -656,9 +663,15 @@ export function exportMileageReportCsv(
       `"${(ev.title || 'Trip').replace(/"/g, '""')}"`,
       `"${ev.mode || 'vehicle'}"`,
       distanceVal.toFixed(2),
-      isBusiness ? '"Business / Work"' : '"Personal"',
-      rate.toFixed(2),
-      deduction.toFixed(2),
+      isPublicTransit
+        ? '"Public Transit"'
+        : isBusiness
+        ? '"Business / Work"'
+        : '"Personal"',
+      isPublicTransit ? '"N/A"' : rate.toFixed(2),
+      isPublicTransit
+        ? '"N/A (Public Transit)"'
+        : deduction.toFixed(2),
       ev.is_cost_logged ? '"Cost Logged"' : '"Pending"',
     ].join(',');
   });
