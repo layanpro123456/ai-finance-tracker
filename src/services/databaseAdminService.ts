@@ -1,5 +1,5 @@
 import { supabase } from '../supabaseClient';
-import { logPlatformEvent } from './adminTelemetry';
+import { logPlatformEvent, isAuthorizedAdmin } from './adminTelemetry';
 
 export interface TableDiagnostic {
   table: string;
@@ -102,6 +102,10 @@ export async function purgeAllDatabaseData(
   currency = 'USD',
   scope: 'global' | 'user' = 'global'
 ): Promise<DatabaseRefreshReport> {
+  if (userEmail && !isAuthorizedAdmin(userEmail)) {
+    throw new Error('Unauthorized: Administrative operations are restricted to layanmoyura@proton.me only.');
+  }
+
   const clearedTables: DatabaseRefreshReport['clearedTables'] = [];
 
   // 1. Try PostgreSQL RPC if targeted to single user and available

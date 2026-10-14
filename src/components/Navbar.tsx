@@ -42,8 +42,9 @@ interface NavbarProps {
   setActiveTab: (tab: ErpTab) => void;
   onSignOut: () => void;
   isAdmin?: boolean;
-  onOpenAdminAuth?: () => void;
   activeAlertCount?: number;
+  showAdminNavTab?: boolean;
+  onToggleAdminNavTab?: (show: boolean) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -52,8 +53,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveTab,
   onSignOut,
   isAdmin = false,
-  onOpenAdminAuth,
   activeAlertCount = 0,
+  showAdminNavTab = false,
+  onToggleAdminNavTab,
 }) => {
   const { preferences, toggleTheme } = usePreferences();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -78,7 +80,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   type NavItem = { id: ErpTab; label: string; icon: React.ReactNode; badge?: number };
 
-  const navItems: NavItem[] = isAdmin
+  const navItems: NavItem[] = (isAdmin && showAdminNavTab)
     ? [...baseNavItems, { id: 'admin' as ErpTab, label: 'Admin', icon: <Shield className="w-4 h-4 text-purple-400" /> }]
     : baseNavItems;
 
@@ -154,28 +156,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="text-[11px] sm:text-xs">{preferences.currency}</span>
               </button>
 
-              {/* Admin Console Quick Button */}
-              <button
-                onClick={() => {
-                  if (isAdmin) {
-                    setActiveTab('admin');
-                  } else if (onOpenAdminAuth) {
-                    onOpenAdminAuth();
-                  }
-                }}
-                type="button"
-                title={isAdmin ? 'Admin Console (Authorized)' : 'Administrator Access'}
-                className={`p-1.5 sm:p-2 rounded-xl border transition cursor-pointer ${
-                  activeTab === 'admin'
-                    ? 'bg-purple-600/20 text-purple-300 border-purple-500/50 shadow-sm'
-                    : isAdmin
-                    ? 'bg-purple-950/40 text-purple-400 hover:text-purple-300 border-purple-500/30'
-                    : 'bg-slate-800 hover:bg-slate-750 text-slate-400 hover:text-purple-300 border-slate-700/60'
-                }`}
-              >
-                <Shield className="w-4 h-4" />
-              </button>
-
               {/* Help & Guide Quick Button */}
               <button
                 onClick={() => setActiveTab('help')}
@@ -199,9 +179,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="max-w-[110px] truncate">{getDeviceName()}</span>
               </span>
 
-              <span className="hidden sm:inline-block text-xs font-medium text-slate-400 bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-700/50 max-w-[140px] truncate">
-                {userEmail}
-              </span>
+              {isAdmin ? (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab(activeTab === 'admin' ? 'dashboard' : 'admin')}
+                  className="hidden sm:inline-block text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-750 px-2.5 py-1.5 rounded-xl border border-slate-700/50 hover:border-purple-500/30 transition cursor-pointer max-w-[140px] truncate"
+                  title="Click to toggle Executive Admin Console (Ctrl+Shift+A)"
+                >
+                  {userEmail}
+                </button>
+              ) : (
+                <span className="hidden sm:inline-block text-xs font-medium text-slate-400 bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-700/50 max-w-[140px] truncate">
+                  {userEmail}
+                </span>
+              )}
 
               <button
                 onClick={onSignOut}
@@ -260,7 +251,17 @@ export const Navbar: React.FC<NavbarProps> = ({
 
 
       {/* Settings Modal */}
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        userEmail={userEmail}
+        onOpenAdmin={() => {
+          setIsSettingsOpen(false);
+          setActiveTab('admin');
+        }}
+        showAdminNavTab={showAdminNavTab}
+        onToggleAdminNavTab={onToggleAdminNavTab}
+      />
     </>
   );
 };

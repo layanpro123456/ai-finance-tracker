@@ -31,7 +31,11 @@ import {
 import type { ProximityAlert } from './types';
 import { AdminPortal } from './components/AdminPortal';
 import { AdminAuthModal } from './components/AdminAuthModal';
-import { isUserAdminSession, logPlatformEvent } from './services/adminTelemetry';
+import {
+  logPlatformEvent,
+  isAuthorizedAdmin,
+  setAdminSession,
+} from './services/adminTelemetry';
 import {
   checkDeviceSessionValidity,
   terminateDeviceSession,
@@ -55,8 +59,28 @@ export function App() {
   const [dataLoading, setDataLoading] = useState(false);
 
   const [activeTab, setActiveTab] = useState<ErpTab>('dashboard');
-  const [isAdmin, setIsAdmin] = useState<boolean>(() => isUserAdminSession());
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isAdminAuthModalOpen, setIsAdminAuthModalOpen] = useState(false);
+  const [showAdminNavTab, setShowAdminNavTab] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('apex_show_admin_nav_tab') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const handleToggleAdminNavTab = (show: boolean) => {
+    setShowAdminNavTab(show);
+    try {
+      if (show) {
+        localStorage.setItem('apex_show_admin_nav_tab', 'true');
+      } else {
+        localStorage.removeItem('apex_show_admin_nav_tab');
+      }
+    } catch {
+      // Ignore storage errors
+    }
+  };
 
   // Core Financial State
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -100,8 +124,11 @@ export function App() {
           return;
         }
 
-        if (currentUser.email?.toLowerCase().includes('admin') || isUserAdminSession()) {
+        if (isAuthorizedAdmin(currentUser.email)) {
           setIsAdmin(true);
+        } else {
+          setIsAdmin(false);
+          setAdminSession(false);
         }
         logPlatformEvent('AUTH', 'User session active on Apex LifeOS', currentUser.id, currentUser.email || undefined);
       }
@@ -125,8 +152,11 @@ export function App() {
           return;
         }
 
-        if (currentUser.email?.toLowerCase().includes('admin') || isUserAdminSession()) {
+        if (isAuthorizedAdmin(currentUser.email)) {
           setIsAdmin(true);
+        } else {
+          setIsAdmin(false);
+          setAdminSession(false);
         }
       }
       setUser(currentUser);
@@ -135,6 +165,44 @@ export function App() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Guarantee activeTab === 'admin' is only accessible if layanmoyura@proton.me
+  useEffect(() => {
+    if (activeTab === 'admin' && !isAuthorizedAdmin(user?.email)) {
+      setActiveTab('dashboard');
+    }
+  }, [activeTab, user?.email]);
+
+  // Keyboard shortcut: Ctrl + Shift + A (or Cmd + Shift + A) to toggle Admin Console for layanmoyura@proton.me
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+        e.preventDefault();
+        if (isAuthorizedAdmin(user?.email)) {
+          setActiveTab((prev) => (prev === 'admin' ? 'dashboard' : 'admin'));
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [user?.email]);
+
+  // URL Hash (#admin) navigation support for layanmoyura@proton.me
+  useEffect(() => {
+    const handleHash = () => {
+      if (window.location.hash === '#admin') {
+        if (isAuthorizedAdmin(user?.email)) {
+          setActiveTab('admin');
+        } else {
+          window.location.hash = '';
+          setActiveTab('dashboard');
+        }
+      }
+    };
+    handleHash();
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, [user?.email]);
 
   // 2. Periodic Single-Device Enforcement Heartbeat & Visibility Check
   useEffect(() => {
@@ -374,7 +442,8 @@ export function App() {
         setActiveTab={setActiveTab}
         onSignOut={handleSignOut}
         isAdmin={isAdmin}
-        onOpenAdminAuth={() => setIsAdminAuthModalOpen(true)}
+        showAdminNavTab={showAdminNavTab}
+        onToggleAdminNavTab={handleToggleAdminNavTab}
         activeAlertCount={activeAlerts.length}
       />
 
@@ -725,6 +794,7 @@ export function App() {
               subsCount: subscriptions.length,
             }}
             onLockSession={() => {
+              setAdminSession(false);
               setIsAdmin(false);
               setActiveTab('dashboard');
             }}
@@ -733,10 +803,11 @@ export function App() {
         )}
       </main>
 
-      {/* Admin Passkey Verification Modal */}
+      {/* Admin Passkey Verification Modal (Restricted to layanmoyura@proton.me) */}
       <AdminAuthModal
         isOpen={isAdminAuthModalOpen}
         onClose={() => setIsAdminAuthModalOpen(false)}
+        userEmail={user.email || undefined}
         onAuthorized={() => {
           setIsAdmin(true);
           setActiveTab('admin');

@@ -120,7 +120,7 @@ export function getPlatformUsers(
     id: currentUserId || 'usr_current',
     email: currentUserEmail || 'current.user@apexlifeos.com',
     maskedId: maskUserId(currentUserId || 'usr_current'),
-    role: (currentUserEmail?.toLowerCase().includes('admin') || isUserAdminSession()) ? 'admin' : 'user',
+    role: isAuthorizedAdmin(currentUserEmail) ? 'admin' : 'user',
     status: 'active',
     joinedDate: new Date().toISOString().split('T')[0],
     lastActive: 'Just now',

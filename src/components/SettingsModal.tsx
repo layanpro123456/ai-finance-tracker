@@ -15,15 +15,28 @@ import {
   Check,
   RotateCcw,
   Sparkles,
+  Shield,
 } from 'lucide-react';
 import { CurrencyLogo } from './CurrencyLogo';
+import { isAuthorizedAdmin } from '../services/adminTelemetry';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  userEmail?: string;
+  onOpenAdmin?: () => void;
+  showAdminNavTab?: boolean;
+  onToggleAdminNavTab?: (show: boolean) => void;
 }
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({
+  isOpen,
+  onClose,
+  userEmail,
+  onOpenAdmin,
+  showAdminNavTab,
+  onToggleAdminNavTab,
+}) => {
   const { preferences, updatePreferences, formatCurrency, formatDate } = usePreferences();
 
   // Local draft state
@@ -229,6 +242,52 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
               </span>
             </div>
           </div>
+
+          {/* Administrator Controls (Exclusive to layanmoyura@proton.me) */}
+          {isAuthorizedAdmin(userEmail) && (
+            <div className="p-4 rounded-xl bg-purple-950/20 border border-purple-500/20 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-purple-400" />
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">
+                    Executive Administration
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
+                  layanmoyura@proton.me
+                </span>
+              </div>
+              <p className="text-xs text-slate-400">
+                Authorized master access for database refresh, audit logs, and security telemetry.
+              </p>
+              <div className="flex items-center justify-between pt-1">
+                {onToggleAdminNavTab && (
+                  <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!showAdminNavTab}
+                      onChange={(e) => onToggleAdminNavTab(e.target.checked)}
+                      className="rounded border-slate-700 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span>Show Admin tab in top navigation</span>
+                  </label>
+                )}
+                {onOpenAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOpenAdmin();
+                      onClose();
+                    }}
+                    className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ml-auto"
+                  >
+                    <Shield className="w-3.5 h-3.5" />
+                    <span>Launch Console</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Modal Actions */}

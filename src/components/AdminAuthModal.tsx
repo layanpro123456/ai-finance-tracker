@@ -9,18 +9,20 @@ import {
   Eye,
   EyeOff,
 } from 'lucide-react';
-import { verifyAdminKey, setAdminSession, MASTER_ADMIN_KEY } from '../services/adminTelemetry';
+import { verifyAdminKey, setAdminSession, isAuthorizedAdmin } from '../services/adminTelemetry';
 
 interface AdminAuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAuthorized: () => void;
+  userEmail?: string;
 }
 
 export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
   isOpen,
   onClose,
   onAuthorized,
+  userEmail,
 }) => {
   const [passkey, setPasskey] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -32,18 +34,18 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
     e.preventDefault();
     setError(null);
 
-    if (verifyAdminKey(passkey)) {
+    if (!isAuthorizedAdmin(userEmail)) {
+      setError('Access Denied: Only layanmoyura@proton.me is authorized for admin access.');
+      return;
+    }
+
+    if (verifyAdminKey(passkey, userEmail)) {
       setAdminSession(true);
       onAuthorized();
       onClose();
     } else {
       setError('Invalid Administrator Key. Please enter the correct master passkey.');
     }
-  };
-
-  const handleFillDemo = () => {
-    setPasskey(MASTER_ADMIN_KEY);
-    setError(null);
   };
 
   return (
@@ -121,14 +123,7 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
           )}
 
           <div className="flex items-center justify-between text-[11px] pt-1">
-            <span className="text-slate-500">Demo Key: <code className="text-purple-300 font-mono">apex-admin-2026</code></span>
-            <button
-              type="button"
-              onClick={handleFillDemo}
-              className="text-purple-400 hover:text-purple-300 underline font-medium cursor-pointer"
-            >
-              Fill Key
-            </button>
+            <span className="text-slate-500">Authorized Admin: <code className="text-purple-300 font-mono">layanmoyura@proton.me</code></span>
           </div>
 
           <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-800">

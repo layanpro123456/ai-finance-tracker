@@ -28,6 +28,7 @@ import {
   getPlatformUsers,
   getPlatformActivityLogs,
   setAdminSession,
+  isAuthorizedAdmin,
 } from '../services/adminTelemetry';
 import {
   purgeAllDatabaseData,
@@ -58,6 +59,24 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   onLockSession,
   onRefreshDatabase,
 }) => {
+  if (!isAuthorizedAdmin(currentUserEmail)) {
+    return (
+      <div className="p-8 text-center bg-slate-900 border border-rose-500/30 rounded-2xl max-w-lg mx-auto mt-12">
+        <ShieldAlert className="w-12 h-12 text-rose-400 mx-auto mb-3" />
+        <h3 className="text-rose-400 font-bold text-lg mb-2">Access Denied</h3>
+        <p className="text-slate-400 text-sm mb-4">
+          Administrative privileges are restricted strictly to authorized personnel (<code className="text-purple-300 font-mono">layanmoyura@proton.me</code>).
+        </p>
+        <button
+          onClick={onLockSession}
+          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold cursor-pointer"
+        >
+          Return to Dashboard
+        </button>
+      </div>
+    );
+  }
+
   const [activeTab, setActiveTab] = useState<AdminViewTab>('users');
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'user'>('all');
