@@ -1451,10 +1451,27 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
                       <div className="flex items-center gap-2 flex-wrap">
                         {/* Toggle Work / Business trip */}
                         {(() => {
-                          const isBiz = ev.is_business_trip ?? (ev.mode === 'vehicle');
+                          const isVehicle = ev.mode === 'vehicle';
+                          const isPublic =
+                            ev.mode === 'high_speed_transit' ||
+                            /\b(train|bus|metro|subway|transit|rail|ferry|tram)\b/i.test(ev.title || '');
+                          const isEligibleVehicle = isVehicle && !isPublic;
+                          const isBiz = ev.is_business_trip ?? isEligibleVehicle;
                           const km = Number(ev.distance_km || 0);
                           const distConverted = taxMileageUnit === 'miles' ? km * 0.621371 : km;
-                          const tripDeduction = distConverted * taxDeductionRate;
+                          const tripDeduction = isEligibleVehicle ? distConverted * taxDeductionRate : 0;
+
+                          if (isPublic) {
+                            return (
+                              <span
+                                className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 flex items-center gap-1.5"
+                                title="Public Transit: Standard mileage deduction rate not applicable. Actual ticket fare applies."
+                              >
+                                <Train className="w-3 h-3" />
+                                <span>Public Transit</span>
+                              </span>
+                            );
+                          }
 
                           return (
                             <button
@@ -1464,7 +1481,7 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
                                   ? 'bg-amber-500/15 border border-amber-500/30 text-amber-300'
                                   : 'bg-slate-800 text-slate-400 hover:text-white'
                               }`}
-                              title="Click to toggle between Business and Personal trip for tax deductions"
+                              title="Click to toggle between Business and Personal trip for vehicle tax deductions"
                             >
                               <Briefcase className="w-3 h-3" />
                               <span>{isBiz ? `Work (+${symbol}${tripDeduction.toFixed(2)})` : 'Personal'}</span>
