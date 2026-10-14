@@ -51,10 +51,9 @@ The mobile companion features **Zero-Exposure Credential Pairing** and **Hardwar
 2. Grant Location permissions (**"Allow all the time"** for background tracking) and Notification permission.
 3. Tap **"Disable Battery Optimization"** so Android does not throttle background execution.
 4. On your Apex LifeOS web dashboard, open **Location & Timeline** ➔ click **"Connect Phone APK"**.
-5. You have two secure, zero-exposure pairing choices:
-   * **1-Tap Token Pairing (Fastest)**: Click **"Copy Secure Pairing Token"** in the web modal, open the Android app's ⚙️ Settings dialog, paste it into the **"Fast 1-Tap Pairing"** field, and tap **"Import"**.
+5. Pair securely with zero plaintext credentials (manual URL, Key, and UUID inputs are completely removed):
+   * **1-Tap Token Pairing (Fastest)**: Click **"Copy Encrypted Pairing Token"** in the web modal, open the Android app's ⚙️ Settings dialog, paste it into the **"1-Tap Pairing Token"** field, and tap **"Import & Connect"**.
    * **Visual QR Code Pairing**: Scan the pairing QR code directly using your phone's camera.
-   * **Manual Entry (Masked)**: If pasting manually, all fields (Project URL, Anon Key, User UUID) are masked with bullet dots (`••••••••`) with visual reveal toggles to prevent shoulder-surfing and screen capture leaks.
-6. Tap **"Save & Connect"** (credentials are encrypted into hardware-backed `EncryptedSharedPreferences` via MasterKey AES-256 GCM), then tap **"START BACKGROUND TRACKING"**.
+6. The app encrypts credentials into hardware-backed `EncryptedSharedPreferences` via Android Keystore (AES-256 GCM). Tap **"START BACKGROUND TRACKING"**.
 7. In your Apex LifeOS web dashboard under **Location & Timeline**, select **"📱 Phone APK Daemon"** to view your live velocity, GPS coordinates, and commute trips streaming in real-time from your pocket!
 

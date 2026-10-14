@@ -196,9 +196,9 @@ To solve mobile browser background tab throttling and Doze mode process freezing
 * **Offline SQLite Queue**: Embedded **Room** database ensures zero lost points during cellular dead-zones or tunnels, auto-flushing to Supabase upon reconnection.
 * **Direct Supabase Sync**: Streams live telemetry directly into `device_location_pings` and broadcasts via Supabase Realtime to the web dashboard.
 * **🔒 Zero-Exposure Mobile Pairing**:
-  * **Masked Display**: Project URLs and API keys are masked by default (`••••••••••••`), protecting against screen recording and shoulder surfing.
-  * **Visual QR Code & 1-Tap Token**: Point your phone camera at the screen or paste the single-string opaque pairing token (`apex_pair_v1_...`). No manual typing or plain text keys exposed.
-  * **Android Keystore AES-256 Storage**: The companion APK encrypts all connection credentials using hardware-backed `EncryptedSharedPreferences`.
+  * **Zero Connection Parameter Exposure**: Raw Project URLs, Anon Keys, and User UUIDs are completely removed from the pairing UI, eliminating screen recording leaks and shoulder-surfing risks.
+  * **Visual QR Code & 1-Tap Token**: Point your phone camera at the screen or paste the single-string opaque pairing token (`apex_pair_v1_...`). No manual typing or raw keys required.
+  * **Android Keystore AES-256 Storage**: The companion APK decrypts the token and persists connection credentials into hardware-backed `EncryptedSharedPreferences`.
 * **Automated Cloud Builds**: GitHub Actions workflow (`.github/workflows/build-tracker-apk.yml`) compiles the debug APK automatically on push or workflow dispatch.
 
 ---
