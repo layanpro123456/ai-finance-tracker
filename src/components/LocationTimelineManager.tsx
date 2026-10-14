@@ -24,6 +24,8 @@ import {
   loadDailyMobilityStats,
   updateDailyMobilityStats,
   SIMULATION_SCENARIOS,
+  getEventsStorageKey,
+  getStatsStorageKey,
 } from '../services/locationMobilityService';
 import { getCurrentDeviceInfo } from '../services/deviceSessionService';
 import { supabase } from '../supabaseClient';
@@ -142,7 +144,30 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
       ]);
       setPlaces(loadedPlaces);
       setEvents(loadedEvents);
-      setDailyStats(loadedStats);
+
+      // If zero timeline events exist, daily stats must strictly reflect clean zero
+      if (
+        loadedEvents.length === 0 &&
+        (loadedStats.total_distance_km > 0 || loadedStats.estimated_transit_cost > 0)
+      ) {
+        const cleanZeroStats: DailyMobilityStats = {
+          ...loadedStats,
+          total_distance_km: 0,
+          transit_time_minutes: 0,
+          walking_km: 0,
+          cycling_km: 0,
+          vehicle_km: 0,
+          estimated_transit_cost: 0,
+          logged_transit_cost: 0,
+          top_speed_kmh: 0,
+          active_stops_count: 0,
+        };
+        const statsKey = getStatsStorageKey(deviceInfo.deviceId, today);
+        localStorage.setItem(statsKey, JSON.stringify(cleanZeroStats));
+        setDailyStats(cleanZeroStats);
+      } else {
+        setDailyStats(loadedStats);
+      }
     } catch (err) {
       console.error('Error initializing location timeline:', err);
     } finally {
@@ -443,24 +468,43 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
     setIsResetting(true);
     try {
       const devId = deviceInfo.deviceId;
-      // 1. Clear Supabase timeline events if connected
+      const today = new Date().toISOString().split('T')[0];
+
+      // 1. Clear Supabase timeline events and daily mobility stats for this device
       try {
         await supabase.from('mobility_timeline_events').delete().eq('user_id', userId).eq('device_id', devId);
+        await supabase.from('daily_mobility_stats').delete().eq('user_id', userId).eq('device_id', devId);
       } catch {
         // ignore
       }
 
-      // 2. Clear localStorage keys
+      // 2. Clear all device-scoped and legacy local storage keys
+      localStorage.removeItem(getEventsStorageKey(devId));
+      localStorage.removeItem(getStatsStorageKey(devId, today));
+      localStorage.removeItem('apex_timeline_events');
+      localStorage.removeItem('apex_daily_mobility');
+      localStorage.removeItem(`apex_daily_mobility_${today}`);
       localStorage.removeItem(`apex_events_${devId}`);
       localStorage.removeItem(`apex_mobility_events_${devId}`);
       localStorage.removeItem('apex_mobility_timeline_events');
-      const today = new Date().toISOString().split('T')[0];
       localStorage.removeItem(`apex_daily_mobility_stats_${today}_${devId}`);
       localStorage.removeItem(`apex_daily_mobility_stats_${today}`);
 
-      // 3. Reset React state
-      setEvents([]);
-      setDailyStats({
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (
+          k &&
+          (k.startsWith('apex_daily_mobility') ||
+            k.startsWith('apex_timeline_events') ||
+            k.startsWith('apex_mobility_') ||
+            k.startsWith('apex_events_'))
+        ) {
+          localStorage.removeItem(k);
+        }
+      }
+
+      // 3. Reset React state strictly to zero
+      const cleanStats: DailyMobilityStats = {
         user_id: userId,
         device_id: devId,
         stat_date: today,
@@ -473,12 +517,15 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
         logged_transit_cost: 0,
         top_speed_kmh: 0,
         active_stops_count: 0,
-      });
+        created_at: new Date().toISOString(),
+      };
+      setEvents([]);
+      setDailyStats(cleanStats);
       classifierRef.current.resetTrip();
       setCurrentSpeedKmh(0);
       setClassifiedMode('stationary');
       setIsInTraffic(false);
-      setStatusMessage('Timeline cleared. Telemetry calibrated.');
+      setStatusMessage('Timeline and daily mobility reset strictly to zero.');
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Failed to reset timeline');
     } finally {
@@ -609,7 +656,7 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
 
             <button
               onClick={handleResetTimeline}
-              disabled={isResetting || events.length === 0}
+              disabled={isResetting}
               title="Reset recorded timeline events, commutes, and daily mobility stats for this device"
               className="text-xs font-semibold px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/25 flex items-center gap-1.5 transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
             >
@@ -858,7 +905,7 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
             <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-850">
               <span className="text-xs text-slate-400 block mb-1">Total Distance</span>
               <span className="text-xl font-bold font-mono text-white">
-                {dailyStats?.total_distance_km.toFixed(1) || '0.0'}
+                {(dailyStats?.total_distance_km ?? 0).toFixed(1)}
               </span>
               <span className="text-xs text-slate-500 ml-1">km</span>
             </div>
@@ -866,7 +913,7 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
             <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-850">
               <span className="text-xs text-slate-400 block mb-1">Transit Time</span>
               <span className="text-xl font-bold font-mono text-white">
-                {dailyStats?.transit_time_minutes || 0}
+                {dailyStats?.transit_time_minutes ?? 0}
               </span>
               <span className="text-xs text-slate-500 ml-1">mins</span>
             </div>
@@ -874,14 +921,14 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
             <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-850">
               <span className="text-xs text-slate-400 block mb-1">Est. Commute Cost</span>
               <span className="text-xl font-bold font-mono text-emerald-400">
-                {symbol}{dailyStats?.estimated_transit_cost.toFixed(2) || '0.00'}
+                {symbol}{(dailyStats?.estimated_transit_cost ?? 0).toFixed(2)}
               </span>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-850">
               <span className="text-xs text-slate-400 block mb-1">Logged to Ledger</span>
               <span className="text-xl font-bold font-mono text-blue-400">
-                {symbol}{dailyStats?.logged_transit_cost.toFixed(2) || '0.00'}
+                {symbol}{(dailyStats?.logged_transit_cost ?? 0).toFixed(2)}
               </span>
             </div>
           </div>
@@ -891,46 +938,45 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
             <div className="flex items-center justify-between text-xs text-slate-400">
               <span>Transport Modal Split</span>
               <div className="flex items-center gap-3 font-mono text-[11px]">
-                <span className="text-blue-400">🚗 {dailyStats?.vehicle_km || 0} km vehicle</span>
-                <span className="text-emerald-400">🚶 {dailyStats?.walking_km || 0} km walk</span>
-                <span className="text-cyan-400">🚲 {dailyStats?.cycling_km || 0} km bike</span>
+                <span className="text-blue-400">🚗 {dailyStats?.vehicle_km ?? 0} km vehicle</span>
+                <span className="text-emerald-400">🚶 {dailyStats?.walking_km ?? 0} km walk</span>
+                <span className="text-cyan-400">🚲 {dailyStats?.cycling_km ?? 0} km bike</span>
               </div>
             </div>
             <div className="h-2.5 rounded-full bg-slate-950 flex overflow-hidden border border-slate-800">
-              <div
-                style={{
-                  width: `${
-                    dailyStats && dailyStats.total_distance_km > 0
-                      ? (dailyStats.vehicle_km / dailyStats.total_distance_km) * 100
-                      : 80
-                  }%`,
-                }}
-                className="bg-blue-500 h-full transition-all"
-                title="Vehicle"
-              />
-              <div
-                style={{
-                  width: `${
-                    dailyStats && dailyStats.total_distance_km > 0
-                      ? (dailyStats.walking_km / dailyStats.total_distance_km) * 100
-                      : 20
-                  }%`,
-                }}
-                className="bg-emerald-500 h-full transition-all"
-                title="Walking"
-              />
-              <div
-                style={{
-                  width: `${
-                    dailyStats && dailyStats.total_distance_km > 0
-                      ? (dailyStats.cycling_km / dailyStats.total_distance_km) * 100
-                      : 0
-                  }%`,
-                }}
-                className="bg-cyan-500 h-full transition-all"
-                title="Cycling"
-              />
+              {dailyStats && dailyStats.total_distance_km > 0 ? (
+                <>
+                  <div
+                    style={{
+                      width: `${(dailyStats.vehicle_km / dailyStats.total_distance_km) * 100}%`,
+                    }}
+                    className="bg-blue-500 h-full transition-all"
+                    title="Vehicle"
+                  />
+                  <div
+                    style={{
+                      width: `${(dailyStats.walking_km / dailyStats.total_distance_km) * 100}%`,
+                    }}
+                    className="bg-emerald-500 h-full transition-all"
+                    title="Walking"
+                  />
+                  <div
+                    style={{
+                      width: `${(dailyStats.cycling_km / dailyStats.total_distance_km) * 100}%`,
+                    }}
+                    className="bg-cyan-500 h-full transition-all"
+                    title="Cycling"
+                  />
+                </>
+              ) : (
+                <div className="w-full h-full bg-slate-950" />
+              )}
             </div>
+            {(!dailyStats || dailyStats.total_distance_km === 0) && (
+              <p className="text-[11px] text-slate-500 font-mono text-center pt-0.5">
+                0.0 km recorded movement today
+              </p>
+            )}
           </div>
         </div>
 
@@ -959,29 +1005,36 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
               </span>
             </div>
 
-            <button
-              onClick={() => {
-                const unlogged = Math.max(
-                  0,
-                  (dailyStats?.estimated_transit_cost || 0) - (dailyStats?.logged_transit_cost || 0)
-                );
-                setLoggingTrip({
-                  id: `commute-summary-${Date.now()}`,
-                  user_id: userId,
-                  event_type: 'trip',
-                  title: "Today's Cumulative Commute",
-                  start_time: new Date().toISOString(),
-                  distance_km: dailyStats?.vehicle_km || 14.8,
-                  estimated_cost: unlogged > 0 ? unlogged : 2.5,
-                  mode: 'vehicle',
-                  in_traffic: true,
-                });
-              }}
-              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-md shadow-emerald-500/10"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>Log Commute Expense Now</span>
-            </button>
+            {(() => {
+              const pendingCommute = Math.max(
+                0,
+                (dailyStats?.estimated_transit_cost || 0) - (dailyStats?.logged_transit_cost || 0)
+              );
+              const hasPending = pendingCommute > 0;
+              return (
+                <button
+                  disabled={!hasPending}
+                  onClick={() => {
+                    if (!hasPending) return;
+                    setLoggingTrip({
+                      id: `commute-summary-${Date.now()}`,
+                      user_id: userId,
+                      event_type: 'trip',
+                      title: "Today's Cumulative Commute",
+                      start_time: new Date().toISOString(),
+                      distance_km: dailyStats?.vehicle_km || 0,
+                      estimated_cost: pendingCommute,
+                      mode: 'vehicle',
+                      in_traffic: true,
+                    });
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-md shadow-emerald-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>{hasPending ? 'Log Commute Expense Now' : 'No Pending Commute Expenses'}</span>
+                </button>
+              );
+            })()}
           </div>
         </div>
       </div>

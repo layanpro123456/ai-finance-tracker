@@ -521,35 +521,6 @@ export async function loadDailyMobilityStats(
 ): Promise<DailyMobilityStats> {
   const deviceKey = getStatsStorageKey(deviceId, statDate);
 
-  try {
-    const { data } = await supabase
-      .from('daily_mobility_stats')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('stat_date', statDate)
-      .eq('device_id', deviceId)
-      .maybeSingle();
-
-    if (data) {
-      return data as DailyMobilityStats;
-    }
-  } catch {
-    // fallback
-  }
-
-  const raw =
-    localStorage.getItem(deviceKey) ||
-    localStorage.getItem(`${LEGACY_STORAGE_STATS_KEY}_${statDate}`);
-  if (raw) {
-
-    try {
-      return JSON.parse(raw);
-    } catch {
-      // ignore
-    }
-  }
-
-  // Clean zero-initialized daily statistics (zero hallucinated mileage or costs)
   const cleanStats: DailyMobilityStats = {
     user_id: userId,
     device_id: deviceId,
@@ -565,6 +536,42 @@ export async function loadDailyMobilityStats(
     active_stops_count: 0,
     created_at: new Date().toISOString(),
   };
+
+  try {
+    const { data, error } = await supabase
+      .from('daily_mobility_stats')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('stat_date', statDate)
+      .eq('device_id', deviceId)
+      .maybeSingle();
+
+    if (!error && data) {
+      localStorage.setItem(deviceKey, JSON.stringify(data));
+      return data as DailyMobilityStats;
+    }
+
+    if (!error && !data) {
+      // Supabase verified: no mobility stats exist for this date -> synchronize clean zero
+      localStorage.setItem(deviceKey, JSON.stringify(cleanStats));
+      localStorage.removeItem(LEGACY_STORAGE_STATS_KEY);
+      localStorage.removeItem(`${LEGACY_STORAGE_STATS_KEY}_${statDate}`);
+      return cleanStats;
+    }
+  } catch {
+    // fallback only if network request threw an exception
+  }
+
+  const raw =
+    localStorage.getItem(deviceKey) ||
+    localStorage.getItem(`${LEGACY_STORAGE_STATS_KEY}_${statDate}`);
+  if (raw) {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      // ignore
+    }
+  }
 
   return cleanStats;
 }

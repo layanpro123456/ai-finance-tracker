@@ -233,12 +233,12 @@ export async function purgeAllDatabaseData(
       const key = localStorage.key(i);
       if (
         key &&
-        (key.startsWith('apex_saved_places_') ||
-          key.startsWith('apex_timeline_events_') ||
-          key.startsWith('apex_daily_mobility_') ||
-          key.startsWith('apex_active_session_') ||
-          key.startsWith('apex_events_') ||
-          key.startsWith('apex_mobility_'))
+        (key.startsWith('apex_saved_places') ||
+          key.startsWith('apex_timeline_events') ||
+          key.startsWith('apex_daily_mobility') ||
+          key.startsWith('apex_active_session') ||
+          key.startsWith('apex_events') ||
+          key.startsWith('apex_mobility'))
       ) {
         keysToRemove.push(key);
       }
