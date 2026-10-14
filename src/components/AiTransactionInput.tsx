@@ -1,9 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useMemo, useCallback } from 'react';
 import type { Account, Category } from '../types';
 import { parseTransaction, supabase, type ParsedTransaction } from '../supabaseClient';
 import { usePreferences } from '../context/PreferencesContext';
 import { CurrencyLogo } from './CurrencyLogo';
-import { Sparkles, ArrowRight, Check, X, AlertCircle, Loader2 } from 'lucide-react';
+import {
+  Sparkles,
+  ArrowRight,
+  Check,
+  X,
+  AlertCircle,
+  Loader2,
+  Mic,
+  MicOff,
+  AudioLines,
+  Languages,
+  Globe,
+} from 'lucide-react';
+import { useSpeechRecognition, SUPPORTED_VOICE_LANGUAGES } from '../hooks/useSpeechRecognition';
 
 interface AiTransactionInputProps {
   userId: string;
@@ -23,6 +36,10 @@ export const AiTransactionInput: React.FC<AiTransactionInputProps> = ({
   const [isParsing, setIsParsing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Voice Typing States
+  const [autoParseOnVoiceEnd, setAutoParseOnVoiceEnd] = useState<boolean>(true);
+  const [showLanguagePicker, setShowLanguagePicker] = useState<boolean>(false);
 
   // Review state
   const [parsedItem, setParsedItem] = useState<ParsedTransaction | null>(null);
@@ -45,43 +62,99 @@ export const AiTransactionInput: React.FC<AiTransactionInputProps> = ({
     `Paid ${preferences.currencySymbol}65 for car maintenance`,
   ];
 
-  const handleParse = async (inputPrompt?: string) => {
-    const textToParse = inputPrompt || prompt;
-    if (!textToParse.trim()) return;
+  const handleParse = useCallback(
+    async (inputPrompt?: string) => {
+      const textToParse = inputPrompt || prompt;
+      if (!textToParse.trim()) return;
 
-    setIsParsing(true);
-    setError(null);
-    setParsedItem(null);
+      setIsParsing(true);
+      setError(null);
+      setParsedItem(null);
 
-    try {
-      const result = await parseTransaction(textToParse);
+      try {
+        const result = await parseTransaction(textToParse);
 
-      // Pre-fill review form
-      setParsedItem(result);
-      setEditedAmount(result.amount);
-      setEditedType(result.type);
-      setEditedDescription(result.description);
-      setEditedDate(result.transaction_date || new Date().toISOString().split('T')[0]);
+        // Pre-fill review form
+        setParsedItem(result);
+        setEditedAmount(result.amount);
+        setEditedType(result.type);
+        setEditedDescription(result.description);
+        setEditedDate(result.transaction_date || new Date().toISOString().split('T')[0]);
 
-      // Find matching category or default
-      const matchedCategory = categories.find(
-        (c) => c.name.toLowerCase() === result.category?.toLowerCase()
-      );
-      if (matchedCategory) {
-        setSelectedCategoryId(matchedCategory.id);
-      } else if (categories.length > 0) {
-        setSelectedCategoryId(categories[0].id);
+        // Find matching category or default
+        const matchedCategory = categories.find(
+          (c) => c.name.toLowerCase() === result.category?.toLowerCase()
+        );
+        if (matchedCategory) {
+          setSelectedCategoryId(matchedCategory.id);
+        } else if (categories.length > 0) {
+          setSelectedCategoryId(categories[0].id);
+        }
+
+        // Default to first account
+        if (accounts.length > 0 && !selectedAccountId) {
+          setSelectedAccountId(accounts[0].id);
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Failed to parse natural language prompt';
+        setError(msg);
+      } finally {
+        setIsParsing(false);
       }
+    },
+    [prompt, categories, accounts, selectedAccountId]
+  );
 
-      // Default to first account
-      if (accounts.length > 0 && !selectedAccountId) {
-        setSelectedAccountId(accounts[0].id);
+  // References for speech callbacks
+  const autoParseRef = useRef(autoParseOnVoiceEnd);
+  autoParseRef.current = autoParseOnVoiceEnd;
+  const promptRef = useRef(prompt);
+  promptRef.current = prompt;
+  const handleParseRef = useRef(handleParse);
+  handleParseRef.current = handleParse;
+
+  const {
+    isSupported: isSpeechSupported,
+    isListening,
+    interimTranscript,
+    error: speechError,
+    language: speechLanguage,
+    setLanguage: setSpeechLanguage,
+    startListening,
+    stopListening,
+    resetTranscript,
+    clearError: clearSpeechError,
+  } = useSpeechRecognition({
+    continuous: false,
+    interimResults: true,
+    onResult: (liveText) => {
+      if (liveText) {
+        setPrompt(liveText);
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to parse natural language prompt';
-      setError(msg);
-    } finally {
-      setIsParsing(false);
+    },
+    onEnd: (finalTranscript) => {
+      const textToParse = finalTranscript.trim() || promptRef.current.trim();
+      if (textToParse && autoParseRef.current) {
+        handleParseRef.current(textToParse);
+      }
+    },
+  });
+
+  const activeLangObj = useMemo(() => {
+    return (
+      SUPPORTED_VOICE_LANGUAGES.find((l) => l.code.toLowerCase() === speechLanguage.toLowerCase()) ||
+      SUPPORTED_VOICE_LANGUAGES.find((l) => l.code.split('-')[0] === speechLanguage.split('-')[0]) ||
+      SUPPORTED_VOICE_LANGUAGES[0]
+    );
+  }, [speechLanguage]);
+
+  const toggleListening = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      clearSpeechError();
+      resetTranscript();
+      startListening();
     }
   };
 
@@ -174,29 +247,160 @@ export const AiTransactionInput: React.FC<AiTransactionInputProps> = ({
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
-      {/* Decorative gradient header */}
-      <div className="flex items-center gap-3 mb-4">
-        <div className="p-2 rounded-xl bg-gradient-to-tr from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 text-emerald-400">
-          <Sparkles className="w-5 h-5" />
+      {/* Decorative gradient header & Voice controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-gradient-to-tr from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 text-emerald-400">
+            <Sparkles className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold text-white tracking-tight">AI Natural Language Logger</h2>
+              {isSpeechSupported ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <Mic className="w-2.5 h-2.5" />
+                  Voice Typing Active
+                </span>
+              ) : (
+                <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800 text-slate-400 border border-slate-700">
+                  Text Mode
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-400">
+              Speak or type: &ldquo;Spent {preferences.currencySymbol}14.50 on lunch at Chipotle today&rdquo;
+            </p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-lg font-bold text-white tracking-tight">AI Natural Language Logger</h2>
-          <p className="text-xs text-slate-400">
-            Type anything like &ldquo;Spent {preferences.currencySymbol}14.50 on lunch at Chipotle today&rdquo;
-          </p>
+
+        {/* Voice Dictation Settings & Language Toolbar */}
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          {/* Language Selector Dropdown */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowLanguagePicker(!showLanguagePicker)}
+              className="text-xs bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white px-2.5 py-1.5 rounded-xl border border-slate-700/80 flex items-center gap-1.5 transition cursor-pointer"
+              title="Change Dictation Language"
+            >
+              <span>{activeLangObj.flag}</span>
+              <span className="font-semibold text-[11px]">{activeLangObj.code.split('-')[0].toUpperCase()}</span>
+              <Languages className="w-3 h-3 text-slate-400" />
+            </button>
+
+            {showLanguagePicker && (
+              <div className="absolute right-0 top-full mt-1.5 z-30 w-56 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-2 max-h-60 overflow-y-auto animate-in fade-in duration-150">
+                <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800 mb-1 flex items-center gap-1.5">
+                  <Globe className="w-3 h-3 text-emerald-400" />
+                  <span>Spoken Voice Language</span>
+                </div>
+                {SUPPORTED_VOICE_LANGUAGES.map((lang) => (
+                  <button
+                    key={lang.code}
+                    type="button"
+                    onClick={() => {
+                      setSpeechLanguage(lang.code);
+                      setShowLanguagePicker(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition cursor-pointer ${
+                      speechLanguage.toLowerCase() === lang.code.toLowerCase()
+                        ? 'bg-emerald-500/20 text-emerald-400 font-semibold'
+                        : 'text-slate-300 hover:bg-slate-800'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span>{lang.flag}</span>
+                      <span>{lang.label}</span>
+                    </span>
+                    {speechLanguage.toLowerCase() === lang.code.toLowerCase() && (
+                      <Check className="w-3 h-3 text-emerald-400" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Auto-Parse Checkbox */}
+          <label className="flex items-center gap-1.5 text-[11px] text-slate-400 hover:text-slate-200 cursor-pointer select-none bg-slate-950/60 px-2.5 py-1.5 rounded-xl border border-slate-800">
+            <input
+              type="checkbox"
+              checked={autoParseOnVoiceEnd}
+              onChange={(e) => setAutoParseOnVoiceEnd(e.target.checked)}
+              className="rounded border-slate-700 text-emerald-500 focus:ring-emerald-500/20 w-3.5 h-3.5 accent-emerald-500"
+            />
+            <span className="hidden xs:inline">Auto-parse</span>
+          </label>
         </div>
       </div>
 
-      {/* Input bar */}
+      {/* Input bar with Voice Mic Button */}
       <div className="flex flex-col sm:flex-row gap-2">
-        <input
-          type="text"
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleParse()}
-          placeholder={`e.g. Paid ${preferences.currencySymbol}65 for groceries or Spent ${preferences.currencySymbol}14.50 on lunch...`}
-          className="flex-1 bg-slate-950 border border-slate-850 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition"
-        />
+        <div className="relative flex-1 flex items-center">
+          <input
+            type="text"
+            value={isListening && interimTranscript ? `${prompt} ${interimTranscript}`.trim() : prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleParse()}
+            placeholder={
+              isListening
+                ? `🎙️ Listening in ${activeLangObj.label}... Speak clearly now`
+                : `e.g. Paid ${preferences.currencySymbol}65 for groceries or Spent ${preferences.currencySymbol}14.50 on lunch...`
+            }
+            className={`w-full bg-slate-950 border rounded-xl pl-4 pr-24 py-3 text-sm text-white placeholder-slate-500 focus:outline-none transition ${
+              isListening
+                ? 'border-rose-500/70 ring-2 ring-rose-500/30'
+                : 'border-slate-800 focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500'
+            }`}
+          />
+
+          {/* Inline Controls: Clear + Microphone Button */}
+          <div className="absolute right-2 flex items-center gap-1.5">
+            {prompt && !isListening && (
+              <button
+                type="button"
+                onClick={() => setPrompt('')}
+                className="text-slate-500 hover:text-slate-300 p-1.5 rounded-lg transition"
+                title="Clear input"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={toggleListening}
+              disabled={!isSpeechSupported && !isListening}
+              title={
+                !isSpeechSupported
+                  ? 'Voice typing not supported in this browser (Use Chrome, Edge, Safari, or mobile)'
+                  : isListening
+                  ? 'Stop Voice Typing'
+                  : `Start Voice Typing in ${activeLangObj.label}`
+              }
+              className={`p-2 rounded-xl transition flex items-center gap-1.5 justify-center cursor-pointer text-xs font-semibold ${
+                isListening
+                  ? 'bg-rose-500 text-white animate-pulse shadow-lg shadow-rose-500/40 ring-4 ring-rose-500/20'
+                  : isSpeechSupported
+                  ? 'bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 border border-slate-700'
+                  : 'bg-slate-900 text-slate-600 cursor-not-allowed border border-slate-800'
+              }`}
+            >
+              {isListening ? (
+                <>
+                  <MicOff className="w-4 h-4" />
+                  <span className="hidden xs:inline text-[11px]">Stop</span>
+                </>
+              ) : (
+                <>
+                  <Mic className="w-4 h-4" />
+                  <span className="hidden xs:inline text-[11px]">Voice</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
         <button
           onClick={() => handleParse()}
           disabled={isParsing || !prompt.trim()}
@@ -216,6 +420,57 @@ export const AiTransactionInput: React.FC<AiTransactionInputProps> = ({
         </button>
       </div>
 
+      {/* Live Audio Waves and Interim Transcript Banner */}
+      {isListening && (
+        <div className="mt-3 p-3.5 rounded-xl bg-gradient-to-r from-rose-500/10 via-emerald-500/10 to-teal-500/10 border border-rose-500/30 text-xs flex items-center justify-between gap-3 animate-in fade-in duration-200">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="relative flex h-3 w-3 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
+            </span>
+            <AudioLines className="w-4 h-4 text-rose-400 shrink-0 animate-pulse" />
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="font-semibold text-white">Listening in {activeLangObj.label}...</span>
+                <span className="text-[10px] text-slate-400">
+                  {autoParseOnVoiceEnd ? '(Will auto-parse when you stop speaking)' : '(Click Done when finished)'}
+                </span>
+              </div>
+              <p className="text-emerald-300 italic truncate text-[11px] mt-0.5">
+                {interimTranscript ? `"${interimTranscript}..."` : prompt ? `"${prompt}..."` : 'Say: "Spent 25 dollars at Costco yesterday"'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={stopListening}
+              className="px-3 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-semibold text-xs border border-rose-500/30 transition cursor-pointer"
+            >
+              Done Speaking
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Speech Error Banner */}
+      {speechError && (
+        <div className="mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{speechError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={clearSpeechError}
+            className="text-slate-400 hover:text-white p-1"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Quick click suggestions */}
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         <span className="text-xs text-slate-500 mr-1">Try example:</span>
@@ -232,6 +487,12 @@ export const AiTransactionInput: React.FC<AiTransactionInputProps> = ({
             &ldquo;{p}&rdquo;
           </button>
         ))}
+        {isSpeechSupported && (
+          <span className="text-[11px] text-emerald-400/80 font-medium ml-1 flex items-center gap-1">
+            <Mic className="w-3 h-3" />
+            <span>or click Voice to speak</span>
+          </span>
+        )}
       </div>
 
       {error && (

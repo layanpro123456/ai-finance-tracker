@@ -16,7 +16,10 @@ import {
   Scale,
   X,
   RotateCcw,
+  Mic,
+  MicOff,
 } from 'lucide-react';
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 
 interface CashManagerProps {
   userId: string;
@@ -77,6 +80,22 @@ export const CashManager: React.FC<CashManagerProps> = ({
   const [spendAmount, setSpendAmount] = useState<number>(0);
   const [spendCategoryId, setSpendCategoryId] = useState<string>(categories[0]?.id || '');
   const [spendDate, setSpendDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+
+  // Voice input for Quick Cash Spend
+  const {
+    isSupported: isCashVoiceSupported,
+    isListening: isCashVoiceListening,
+    startListening: startCashVoice,
+    stopListening: stopCashVoice,
+  } = useSpeechRecognition({
+    continuous: false,
+    interimResults: true,
+    onResult: (text) => {
+      if (text) {
+        setSpendDescription(text);
+      }
+    },
+  });
 
   // Form states: Physical Denomination Audit
   // Multipliers for counting
@@ -909,16 +928,43 @@ export const CashManager: React.FC<CashManagerProps> = ({
 
             <form onSubmit={handleExecuteCashSpend} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Description / What was purchased *
-                </label>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-semibold text-slate-300">Description / What was purchased *</span>
+                  {isCashVoiceSupported && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isCashVoiceListening) {
+                          stopCashVoice();
+                        } else {
+                          startCashVoice();
+                        }
+                      }}
+                      className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-lg transition cursor-pointer ${
+                        isCashVoiceListening
+                          ? 'bg-rose-500 text-white animate-pulse'
+                          : 'bg-slate-800 text-emerald-400 hover:text-emerald-300'
+                      }`}
+                      title={isCashVoiceListening ? 'Stop Voice Typing' : 'Voice Dictate Description'}
+                    >
+                      {isCashVoiceListening ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
+                      <span>{isCashVoiceListening ? 'Listening...' : 'Voice'}</span>
+                    </button>
+                  )}
+                </div>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Street food, Parking meter, Barber tip"
+                  placeholder={
+                    isCashVoiceListening
+                      ? '🎙️ Listening... Speak purchase description'
+                      : 'e.g. Street food, Parking meter, Barber tip'
+                  }
                   value={spendDescription}
                   onChange={(e) => setSpendDescription(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                  className={`w-full bg-slate-950 border rounded-xl px-3 py-2 text-xs text-white transition ${
+                    isCashVoiceListening ? 'border-rose-500 ring-1 ring-rose-500/50' : 'border-slate-800'
+                  }`}
                 />
               </div>
 

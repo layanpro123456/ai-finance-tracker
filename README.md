@@ -37,10 +37,15 @@ Traditional personal finance apps only track what you spent *after* you've alrea
 
 ## 🚀 Key Modules & Capabilities
 
-### 1. ⚡ AI Natural Language Transaction Ledger
+### 1. ⚡ AI Natural Language Transaction Ledger & Voice Typing
 * Powered by Google Gemini 2.0 / 2.5 Flash with multi-currency parsing.
 * Type or paste natural language purchases:
   > *"Spent Rs 4,500 on groceries at Keells"* or *"Paid €65 for train ticket yesterday"*
+* **🎙️ Real-Time Voice Typing (Speech-to-Text)**:
+  * Hands-free dictation powered by the browser Web Speech API with live audio waveform pulses and real-time interim transcript streaming.
+  * **17+ Spoken Languages**: Dictate in English (US/UK/IN/AU/CA), Spanish, French, German, Italian, Portuguese, Hindi, Japanese, Mandarin, Sinhala, Tamil, Arabic, and more with instant language switching and browser auto-detection.
+  * **Auto-Parse on Speech End**: Speak naturally, pause, and the engine automatically parses and pre-fills your transaction without requiring a single mouse click or keyboard tap.
+  * Also embedded directly inside the **Quick Cash Spend** modal for ultra-fast on-the-street cash logging.
 * Automatically identifies category, transaction type, date, and deducts the corresponding account balance.
 * **100% Dynamic Currency Support**: Works seamlessly across 40+ currencies (USD `$`, LKR `Rs`, EUR `€`, GBP `£`, INR `₹`, CAD `CA$`, etc.) with zero hardcoded currency symbols.
 
@@ -231,6 +236,8 @@ ai-finance-tracker/
 │   │   └── TransactionList.tsx          # Filterable ledger transactions & reset
 │   ├── context/
 │   │   └── PreferencesContext.tsx       # Dynamic currency & theme context
+│   ├── hooks/
+│   │   └── useSpeechRecognition.ts      # Web Speech API voice typing & multi-language dictation
 │   ├── services/
 │   │   ├── adminTelemetry.ts           # Privacy-first audit logging & admin email verification
 │   │   ├── databaseAdminService.ts     # 1-Click database purge & clean 0.00 balance reset
