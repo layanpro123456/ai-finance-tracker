@@ -8,6 +8,7 @@ import type {
   Budget,
   Task,
   ContactsLedger,
+  DeviceLocationPing,
 } from '../types';
 import { getDeviceId, getDeviceName } from './deviceSessionService';
 
@@ -619,4 +620,101 @@ export const SIMULATION_SCENARIOS: SimulationScenario[] = [
     ],
   },
 ];
+
+// ============================================================================
+// Android APK Companion & Telemetry Stream Sync
+// ============================================================================
+
+export async function loadLatestDevicePing(
+  userId: string,
+  deviceId?: string
+): Promise<DeviceLocationPing | null> {
+  try {
+    let query = supabase
+      .from('device_location_pings')
+      .select('*')
+      .eq('user_id', userId)
+      .order('recorded_at', { ascending: false })
+      .limit(1);
+
+    if (deviceId) {
+      query = query.eq('device_id', deviceId);
+    }
+
+    const { data, error } = await query.maybeSingle();
+    if (!error && data) {
+      return data as DeviceLocationPing;
+    }
+  } catch (err) {
+    console.warn('Error loading latest device ping:', err);
+  }
+  return null;
+}
+
+export async function recordDevicePing(
+  userId: string,
+  ping: Partial<DeviceLocationPing>,
+  deviceId = getDeviceId()
+): Promise<DeviceLocationPing | null> {
+  const newPing: Partial<DeviceLocationPing> = {
+    user_id: userId,
+    device_id: ping.device_id || deviceId,
+    device_name: ping.device_name || getDeviceName(),
+    latitude: ping.latitude || 0,
+    longitude: ping.longitude || 0,
+    altitude: ping.altitude || null,
+    accuracy_meters: ping.accuracy_meters || null,
+    speed_kmh: ping.speed_kmh || 0,
+    heading: ping.heading || null,
+    battery_level: ping.battery_level || null,
+    is_charging: ping.is_charging || false,
+    transport_mode: ping.transport_mode || 'unknown',
+    recorded_at: ping.recorded_at || new Date().toISOString(),
+  };
+
+  try {
+    const { data, error } = await supabase
+      .from('device_location_pings')
+      .insert(newPing)
+      .select()
+      .single();
+
+    if (!error && data) {
+      return data as DeviceLocationPing;
+    }
+    if (error) {
+      console.warn('Error recording device ping to Supabase:', error.message);
+    }
+  } catch (err) {
+    console.warn('Network error pushing device ping:', err);
+  }
+  return null;
+}
+
+export function subscribeToDevicePings(
+  userId: string,
+  onPing: (ping: DeviceLocationPing) => void
+) {
+  const channel = supabase
+    .channel(`device_location_pings_${userId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'device_location_pings',
+        filter: `user_id=eq.${userId}`,
+      },
+      (payload) => {
+        if (payload.new) {
+          onPing(payload.new as DeviceLocationPing);
+        }
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
 

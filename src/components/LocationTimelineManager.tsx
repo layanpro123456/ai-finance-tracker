@@ -10,6 +10,7 @@ import type {
   Budget,
   Task,
   ContactsLedger,
+  DeviceLocationPing,
 } from '../types';
 import { usePreferences } from '../context/PreferencesContext';
 import { CurrencyLogo } from './CurrencyLogo';
@@ -23,12 +24,14 @@ import {
   persistTimelineEvent,
   loadDailyMobilityStats,
   updateDailyMobilityStats,
+  loadLatestDevicePing,
+  subscribeToDevicePings,
   SIMULATION_SCENARIOS,
   getEventsStorageKey,
   getStatsStorageKey,
 } from '../services/locationMobilityService';
 import { getCurrentDeviceInfo } from '../services/deviceSessionService';
-import { supabase } from '../supabaseClient';
+import { supabase, supabaseUrl, supabaseAnonKey } from '../supabaseClient';
 import {
   Navigation,
   MapPin,
@@ -55,6 +58,11 @@ import {
   Loader2,
   Smartphone,
   ShieldCheck,
+  Battery,
+  BatteryCharging,
+  Copy,
+  Check,
+  QrCode,
 } from 'lucide-react';
 
 interface LocationTimelineManagerProps {
@@ -90,13 +98,16 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
 
   // Telemetry & GPS State
   const [isTracking, setIsTracking] = useState(true);
-  const [trackingSource, setTrackingSource] = useState<'simulation' | 'real_gps'>('real_gps');
+  const [trackingSource, setTrackingSource] = useState<'simulation' | 'real_gps' | 'phone_apk'>('phone_apk');
+  const [latestPhonePing, setLatestPhonePing] = useState<DeviceLocationPing | null>(null);
+  const [showPairPhoneModal, setShowPairPhoneModal] = useState(false);
+  const [copiedCredentials, setCopiedCredentials] = useState(false);
   const [manualModeLock, setManualModeLock] = useState<TransportMode | 'auto'>('auto');
   const [currentCoords, setCurrentCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [currentSpeedKmh, setCurrentSpeedKmh] = useState<number>(0);
   const [classifiedMode, setClassifiedMode] = useState<TransportMode>('stationary');
   const [isInTraffic, setIsInTraffic] = useState<boolean>(false);
-  const [statusMessage, setStatusMessage] = useState<string>('Connecting to real device GPS...');
+  const [statusMessage, setStatusMessage] = useState<string>('Listening to background Android APK telemetry...');
 
   // Simulation State (Anchor dynamically centered around user device)
   const [selectedScenarioId, setSelectedScenarioId] = useState<string>(SIMULATION_SCENARIOS[0].id);
@@ -185,6 +196,58 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
       setCommuteAccountId(accounts[0].id);
     }
   }, [accounts, commuteAccountId]);
+
+  // 2.0 Remote Phone APK Realtime Stream Watcher
+  useEffect(() => {
+    if (trackingSource !== 'phone_apk' || !isTracking || !userId) return;
+
+    setStatusMessage('Connecting to Android APK background stream...');
+
+    loadLatestDevicePing(userId).then((ping) => {
+      if (ping) {
+        setLatestPhonePing(ping);
+        const coords = { latitude: ping.latitude, longitude: ping.longitude };
+        setCurrentCoords(coords);
+        simAnchorCoords.current = coords;
+        setCurrentSpeedKmh(ping.speed_kmh);
+        if (ping.transport_mode && ping.transport_mode !== 'unknown') {
+          setClassifiedMode(ping.transport_mode as TransportMode);
+        }
+        const battText = ping.battery_level !== null && ping.battery_level !== undefined
+          ? ` • 🔋 ${Math.round(ping.battery_level)}%`
+          : '';
+        setStatusMessage(
+          `Phone APK Active: ${ping.device_name || 'Android Device'} (${ping.speed_kmh.toFixed(1)} km/h • ${ping.transport_mode || 'moving'}${battText})`
+        );
+      } else {
+        setStatusMessage('Waiting for first location ping from Android APK...');
+      }
+    });
+
+    const unsubscribe = subscribeToDevicePings(userId, (ping) => {
+      setLatestPhonePing(ping);
+      const coords = { latitude: ping.latitude, longitude: ping.longitude };
+      setCurrentCoords(coords);
+      simAnchorCoords.current = coords;
+      setCurrentSpeedKmh(ping.speed_kmh);
+
+      if (ping.transport_mode && ping.transport_mode !== 'unknown') {
+        setClassifiedMode(ping.transport_mode as TransportMode);
+      }
+
+      const battLabel = ping.battery_level !== null && ping.battery_level !== undefined
+        ? ` • 🔋 ${Math.round(ping.battery_level)}%${ping.is_charging ? ' ⚡' : ''}`
+        : '';
+
+      setStatusMessage(
+        `Live Phone Fix: ${ping.speed_kmh.toFixed(1)} km/h (${ping.transport_mode || 'moving'})${battLabel}`
+      );
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [trackingSource, isTracking, userId]);
 
   // 2. Real GPS Hardware Watcher
   useEffect(() => {
@@ -630,15 +693,15 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
           <div className="flex items-center gap-2 flex-wrap">
             <div className="p-1 rounded-xl bg-slate-950 border border-slate-800 flex items-center text-xs">
               <button
-                onClick={() => setTrackingSource('simulation')}
+                onClick={() => setTrackingSource('phone_apk')}
                 className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer flex items-center gap-1.5 ${
-                  trackingSource === 'simulation'
+                  trackingSource === 'phone_apk'
                     ? 'bg-emerald-500 text-slate-950 font-bold shadow-sm'
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
-                <Sliders className="w-3.5 h-3.5" />
-                <span>Route Simulator</span>
+                <Smartphone className="w-3.5 h-3.5" />
+                <span>Phone APK Daemon</span>
               </button>
               <button
                 onClick={() => setTrackingSource('real_gps')}
@@ -649,9 +712,29 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
                 }`}
               >
                 <Radio className="w-3.5 h-3.5" />
-                <span>Device GPS</span>
+                <span>Browser GPS</span>
+              </button>
+              <button
+                onClick={() => setTrackingSource('simulation')}
+                className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer flex items-center gap-1.5 ${
+                  trackingSource === 'simulation'
+                    ? 'bg-emerald-500 text-slate-950 font-bold shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Sliders className="w-3.5 h-3.5" />
+                <span>Simulator</span>
               </button>
             </div>
+
+            <button
+              onClick={() => setShowPairPhoneModal(true)}
+              className="text-xs font-semibold px-3 py-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/25 flex items-center gap-1.5 transition cursor-pointer"
+              title="Pair with Android Location Tracker APK"
+            >
+              <QrCode className="w-3.5 h-3.5 text-purple-400" />
+              <span>Pair Phone APK</span>
+            </button>
 
             <button
               onClick={handleResetTimeline}
@@ -703,6 +786,59 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
             </span>
           </div>
         </div>
+
+        {/* Phone APK Live Stream Ribbon */}
+        {trackingSource === 'phone_apk' && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-gradient-to-r from-purple-950/40 via-slate-900 to-slate-950 border border-purple-500/30 text-xs">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30 flex-shrink-0">
+                <Smartphone className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-white text-sm">
+                    {latestPhonePing?.device_name || 'Android Companion Beacon'}
+                  </span>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Realtime Telemetry Stream</span>
+                  </span>
+                </div>
+                <p className="text-slate-400 text-xs mt-0.5">
+                  Native Android Foreground Service running in pocket • Bypasses browser tab throttling
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              {latestPhonePing?.battery_level !== undefined && latestPhonePing.battery_level !== null && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-slate-200">
+                  {latestPhonePing.is_charging ? (
+                    <BatteryCharging className="w-4 h-4 text-emerald-400" />
+                  ) : (
+                    <Battery className="w-4 h-4 text-amber-400" />
+                  )}
+                  <span className="font-mono font-bold">{Math.round(latestPhonePing.battery_level)}%</span>
+                  {latestPhonePing.is_charging && <span className="text-[10px] text-emerald-400 font-semibold">(Charging)</span>}
+                </div>
+              )}
+
+              {latestPhonePing?.accuracy_meters !== undefined && latestPhonePing.accuracy_meters !== null && (
+                <div className="px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-slate-300 font-mono">
+                  <span>±{latestPhonePing.accuracy_meters.toFixed(1)}m GPS</span>
+                </div>
+              )}
+
+              <button
+                onClick={() => setShowPairPhoneModal(true)}
+                className="px-3 py-1.5 rounded-xl bg-purple-500 hover:bg-purple-400 text-slate-950 font-bold transition flex items-center gap-1 cursor-pointer"
+              >
+                <QrCode className="w-3.5 h-3.5" />
+                <span>Pairing Info</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Real-Time Speedometer & Telemetry Ribbon */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1571,6 +1707,168 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
                   <span>Deduct &amp; Record to Ledger</span>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* MODAL: PAIR ANDROID LOCATION TRACKER APK */}
+      {/* ===================================================================== */}
+      {showPairPhoneModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl relative space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                  <Smartphone className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Pair Android Tracker APK</h3>
+                  <p className="text-xs text-slate-400">Continuous background GPS telemetry for Apex LifeOS</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowPairPhoneModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-purple-950/30 border border-purple-500/20 text-xs text-purple-200 leading-relaxed">
+              <span className="font-semibold text-purple-300">Why use the companion APK? </span>
+              Mobile browsers aggressively suspend background JavaScript when you lock the phone or put it in your pocket. The companion APK runs as an Android <strong>Foreground Service</strong>, ensuring uninterrupted transit classification and geofence detection.
+            </div>
+
+            {/* Credentials Section */}
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  Supabase Project URL
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={supabaseUrl || 'https://your-project.supabase.co'}
+                    className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-emerald-400 select-all"
+                  />
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(supabaseUrl);
+                      setCopiedCredentials(true);
+                      setTimeout(() => setCopiedCredentials(false), 2000);
+                    }}
+                    className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs flex items-center gap-1 cursor-pointer"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy</span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  Anon Public Key
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={supabaseAnonKey || 'your-anon-key'}
+                    className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-300 truncate select-all"
+                  />
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(supabaseAnonKey);
+                      setCopiedCredentials(true);
+                      setTimeout(() => setCopiedCredentials(false), 2000);
+                    }}
+                    className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs flex items-center gap-1 cursor-pointer"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy</span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  User Auth UUID (auth.users)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={userId || ''}
+                    className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-cyan-400 select-all"
+                  />
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(userId);
+                      setCopiedCredentials(true);
+                      setTimeout(() => setCopiedCredentials(false), 2000);
+                    }}
+                    className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs flex items-center gap-1 cursor-pointer"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Copy All Button */}
+            <button
+              onClick={() => {
+                const configPayload = JSON.stringify(
+                  {
+                    supabase_url: supabaseUrl,
+                    supabase_anon_key: supabaseAnonKey,
+                    user_id: userId,
+                  },
+                  null,
+                  2
+                );
+                navigator.clipboard.writeText(configPayload);
+                setCopiedCredentials(true);
+                setTimeout(() => setCopiedCredentials(false), 2000);
+              }}
+              className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer"
+            >
+              {copiedCredentials ? (
+                <>
+                  <Check className="w-4 h-4 text-emerald-400" />
+                  <span className="text-emerald-400">Copied All Pairing Config to Clipboard!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4 text-purple-400" />
+                  <span>Copy Full Configuration JSON</span>
+                </>
+              )}
+            </button>
+
+            {/* Step-by-Step Instructions */}
+            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/80 space-y-2 text-xs text-slate-300">
+              <span className="font-bold text-white block">Installation Steps:</span>
+              <ol className="list-decimal list-inside space-y-1 text-slate-400">
+                <li>Install the <strong>Apex Location Tracker</strong> APK on your Android device (source in <code className="text-emerald-400 font-mono">android-companion/</code>).</li>
+                <li>Grant location permissions (<strong>Allow all the time</strong>) and disable battery optimizations.</li>
+                <li>Tap <strong>Settings (⚙️)</strong> in the app, paste the credentials above, and tap <strong>Save &amp; Connect</strong>.</li>
+                <li>Tap <strong>START BACKGROUND TRACKING</strong>. Your phone in your pocket will continuously stream telemetry to this screen!</li>
+              </ol>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowPairPhoneModal(false)}
+                className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition cursor-pointer"
+              >
+                Done
+              </button>
             </div>
           </div>
         </div>

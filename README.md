@@ -182,18 +182,15 @@ Traditional personal finance apps only track what you spent *after* you've alrea
 
 ---
 
-## 📱 Mobile App Roadmap (Capacitor)
+## 📱 Android Companion APK & Background Telemetry (`android-companion/`)
 
-Apex LifeOS is engineered with a mobile-first PWA responsive foundation that smoothly translates into native Android (`.apk` / `.aab`) and iOS (`.ipa`) applications using **Capacitor**:
+To solve mobile browser background tab throttling and Doze mode process freezing when your phone screen locks or rests in your pocket, Apex LifeOS includes a dedicated, lightweight native Android companion application:
 
-* **Runtime Wrapper**: [`@capacitor/core`](https://capacitorjs.com/) and `@capacitor/cli`
-* **Native Geolocation**: [`@capacitor/geolocation`](https://capacitorjs.com/docs/apis/geolocation) for background location telemetry and fine-grained GPS fixes
-* **Hardware Device ID**: [`@capacitor/device`](https://capacitorjs.com/docs/apis/device) for physical device fingerprinting
-* **Native Storage**: [`@capacitor/preferences`](https://capacitorjs.com/docs/apis/preferences) for encrypted token storage
-* **Haptics & Feedback**: [`@capacitor/haptics`](https://capacitorjs.com/docs/apis/haptics) for vibration feedback on geofence arrival and ledger inputs
-
-> [!NOTE]
-> Review the detailed implementation guide in [mobile_app_development_plan.md](mobile_app_development_plan.md) for full phase-by-phase mobile packaging steps, Gradle configurations, and app store deployment.
+* **High-Precision Fused Location**: Google Play Services **Fused Location Provider** with dynamic adaptive rate shifting ($8–15\text{s}$ during vehicle transit; $90\text{s}–3\text{m}$ stationary to consume $<2\%$ battery per 8 hours).
+* **Native Foreground Service**: Runs an ongoing status bar notification (`FOREGROUND_SERVICE_LOCATION`), preventing Android from terminating telemetry acquisition.
+* **Offline SQLite Queue**: Embedded **Room** database ensures zero lost points during cellular dead-zones or tunnels, auto-flushing to Supabase upon reconnection.
+* **Direct Supabase Sync**: Streams live telemetry directly into `device_location_pings` and broadcasts via Supabase Realtime to the web dashboard.
+* **Automated Cloud Builds**: GitHub Actions workflow (`.github/workflows/build-tracker-apk.yml`) compiles the debug APK automatically on push or workflow dispatch.
 
 ---
 
@@ -201,9 +198,16 @@ Apex LifeOS is engineered with a mobile-first PWA responsive foundation that smo
 
 ```text
 ai-finance-tracker/
+├── .github/
+│   └── workflows/
+│       └── build-tracker-apk.yml        # Automated GitHub Actions APK build workflow
+├── android-companion/                   # Native Android Kotlin/Compose background location daemon
+│   ├── app/                             # Native Android app module (Service, Room, Supabase)
+│   ├── gradle/                          # Gradle wrapper configuration
+│   └── README.md                        # APK compilation, sideloading & pairing instructions
 ├── public/
-│   ├── favicon.svg                  # High-resolution Apex LifeOS SVG luxury fintech favicon
-│   └── poster.html                  # Marketing poster and feature showcase
+│   ├── favicon.svg                      # High-resolution Apex LifeOS SVG luxury fintech favicon
+│   └── poster.html                      # Marketing poster and feature showcase
 ├── src/
 │   ├── components/
 │   │   ├── AccountManager.tsx           # Multi-account balance sheets & reset (starts at 0.00)

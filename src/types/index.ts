@@ -247,6 +247,24 @@ export interface DailyMobilityStats {
   created_at?: string;
 }
 
+export interface DeviceLocationPing {
+  id: string;
+  user_id: string;
+  device_id: string;
+  device_name?: string;
+  latitude: number;
+  longitude: number;
+  altitude?: number | null;
+  accuracy_meters?: number | null;
+  speed_kmh: number;
+  heading?: number | null;
+  battery_level?: number | null;
+  is_charging?: boolean;
+  transport_mode?: TransportMode | 'unknown';
+  recorded_at: string;
+  created_at?: string;
+}
+
 export interface ProximityAlert {
   id: string;
   placeId: string;
