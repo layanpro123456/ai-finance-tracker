@@ -144,29 +144,28 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
       ]);
       setPlaces(loadedPlaces);
       setEvents(loadedEvents);
+      setDailyStats(loadedStats);
 
-      // If zero timeline events exist, daily stats must strictly reflect clean zero
-      if (
-        loadedEvents.length === 0 &&
-        (loadedStats.total_distance_km > 0 || loadedStats.estimated_transit_cost > 0)
-      ) {
-        const cleanZeroStats: DailyMobilityStats = {
-          ...loadedStats,
-          total_distance_km: 0,
-          transit_time_minutes: 0,
-          walking_km: 0,
-          cycling_km: 0,
-          vehicle_km: 0,
-          estimated_transit_cost: 0,
-          logged_transit_cost: 0,
-          top_speed_kmh: 0,
-          active_stops_count: 0,
-        };
-        const statsKey = getStatsStorageKey(deviceInfo.deviceId, today);
-        localStorage.setItem(statsKey, JSON.stringify(cleanZeroStats));
-        setDailyStats(cleanZeroStats);
-      } else {
-        setDailyStats(loadedStats);
+      // Clean any stale cached mobility keys from localStorage to guarantee pure Supabase state
+      try {
+        localStorage.removeItem('apex_saved_places');
+        localStorage.removeItem('apex_timeline_events');
+        localStorage.removeItem('apex_daily_mobility');
+        localStorage.removeItem('apex_mobility_timeline_events');
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const k = localStorage.key(i);
+          if (
+            k &&
+            (k.startsWith('apex_daily_mobility') ||
+              k.startsWith('apex_timeline_events') ||
+              k.startsWith('apex_saved_places') ||
+              k.startsWith('apex_mobility_'))
+          ) {
+            localStorage.removeItem(k);
+          }
+        }
+      } catch {
+        // ignore
       }
     } catch (err) {
       console.error('Error initializing location timeline:', err);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Task, Account, Category, TaskPriority, FinancialTaskType } from '../types';
 import { supabase } from '../supabaseClient';
 import { usePreferences } from '../context/PreferencesContext';
@@ -60,24 +60,39 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
   const [accountId, setAccountId] = useState<string>('');
   const [recurrenceRule, setRecurrenceRule] = useState<string>('none');
 
-  // Daily Streak state (persists in localStorage)
-  const [noSpendStreak, setNoSpendStreak] = useState<number>(() => {
-    return parseInt(localStorage.getItem('apex_no_spend_streak') || '0', 10);
-  });
-  const [markedTodayNoSpend, setMarkedTodayNoSpend] = useState<boolean>(() => {
-    return localStorage.getItem('apex_marked_today') === new Date().toISOString().split('T')[0];
-  });
+  // Daily Streak state (synced with Supabase)
+  const [noSpendStreak, setNoSpendStreak] = useState<number>(0);
+  const [markedTodayNoSpend, setMarkedTodayNoSpend] = useState<boolean>(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      const today = new Date().toISOString().split('T')[0];
+      if (user?.user_metadata) {
+        const streak = user.user_metadata.no_spend_streak ?? parseInt(localStorage.getItem('apex_no_spend_streak') || '0', 10);
+        const marked = (user.user_metadata.marked_today === today) || (localStorage.getItem('apex_marked_today') === today);
+        setNoSpendStreak(streak);
+        setMarkedTodayNoSpend(marked);
+      }
+    });
+  }, []);
 
   const handleToggleNoSpendToday = () => {
     const today = new Date().toISOString().split('T')[0];
     if (markedTodayNoSpend) {
       setMarkedTodayNoSpend(false);
       localStorage.removeItem('apex_marked_today');
+      supabase.auth.updateUser({
+        data: { marked_today: null },
+      }).catch(() => {});
     } else {
       setMarkedTodayNoSpend(true);
-      setNoSpendStreak((prev) => prev + 1);
+      const nextStreak = noSpendStreak + 1;
+      setNoSpendStreak(nextStreak);
       localStorage.setItem('apex_marked_today', today);
-      localStorage.setItem('apex_no_spend_streak', String(noSpendStreak + 1));
+      localStorage.setItem('apex_no_spend_streak', String(nextStreak));
+      supabase.auth.updateUser({
+        data: { no_spend_streak: nextStreak, marked_today: today },
+      }).catch(() => {});
     }
   };
 

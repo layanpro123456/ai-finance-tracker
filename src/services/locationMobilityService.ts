@@ -19,10 +19,6 @@ export const getEventsStorageKey = (deviceId: string) => `apex_timeline_events_$
 export const getStatsStorageKey = (deviceId: string, statDate: string) =>
   `apex_daily_mobility_${deviceId}_${statDate}`;
 
-// Fallback legacy keys
-const LEGACY_STORAGE_PLACES_KEY = 'apex_saved_places';
-const LEGACY_STORAGE_EVENTS_KEY = 'apex_timeline_events';
-const LEGACY_STORAGE_STATS_KEY = 'apex_daily_mobility';
 
 // ============================================================================
 // Mathematical Geodesic Distance (Haversine Formula)
@@ -348,16 +344,13 @@ export function estimateCommuteCost(
 }
 
 // ============================================================================
-// LocalStorage & Supabase Persistence Engine
+// LocalStorage & Supabase Persistence Engine (Always Sync with Supabase)
 // ============================================================================
 
 export async function loadSavedPlaces(
   userId: string,
   deviceId = getDeviceId()
 ): Promise<SavedPlace[]> {
-  const deviceKey = getPlacesStorageKey(deviceId);
-
-  // 1. Try Supabase (fetch places belonging to this device or shared global defaults)
   try {
     const { data, error } = await supabase
       .from('saved_places')
@@ -367,27 +360,15 @@ export async function loadSavedPlaces(
       .order('created_at', { ascending: false });
 
     if (!error && data) {
-      localStorage.setItem(deviceKey, JSON.stringify(data));
       return data as SavedPlace[];
     }
-  } catch {
-    // Fall back to local storage only if network failed
-  }
-
-  // 2. Fall back to device-specific localStorage
-  const raw = localStorage.getItem(deviceKey) || localStorage.getItem(LEGACY_STORAGE_PLACES_KEY);
-  if (raw) {
-    try {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
-    } catch {
-      // ignore parse error
+    if (error) {
+      console.warn('Supabase query error on saved_places:', error.message);
     }
+  } catch (err) {
+    console.warn('Network error loading saved places from Supabase:', err);
   }
 
-  // Return empty list if no saved places exist (zero hallucinated sample places)
   return [];
 }
 
@@ -396,7 +377,6 @@ export async function persistSavedPlace(
   place: Partial<SavedPlace>,
   deviceId = getDeviceId()
 ): Promise<SavedPlace> {
-  const deviceKey = getPlacesStorageKey(deviceId);
   const newPlace: SavedPlace = {
     id: place.id || `place-${Date.now()}`,
     user_id: userId,
@@ -414,46 +394,37 @@ export async function persistSavedPlace(
     created_at: new Date().toISOString(),
   };
 
-  // Try Supabase insert
-  try {
-    await supabase.from('saved_places').upsert(newPlace);
-  } catch {
-    // ignore
+  const { error } = await supabase.from('saved_places').upsert(newPlace);
+  if (error) {
+    console.error('Error persisting place to Supabase:', error.message);
   }
 
-  // Update device-scoped local storage
-  const current = await loadSavedPlaces(userId, deviceId);
-  const updated = [newPlace, ...current.filter((p) => p.id !== newPlace.id)];
-  localStorage.setItem(deviceKey, JSON.stringify(updated));
   return newPlace;
 }
 
 export async function removeSavedPlace(
   userId: string,
   placeId: string,
-  deviceId = getDeviceId()
+  _deviceId = getDeviceId()
 ): Promise<void> {
-  const deviceKey = getPlacesStorageKey(deviceId);
-  try {
-    await supabase.from('saved_places').delete().eq('id', placeId);
-  } catch {
-    // ignore
-  }
+  const { error } = await supabase
+    .from('saved_places')
+    .delete()
+    .eq('id', placeId)
+    .eq('user_id', userId);
 
-  const current = await loadSavedPlaces(userId, deviceId);
-  const updated = current.filter((p) => p.id !== placeId);
-  localStorage.setItem(deviceKey, JSON.stringify(updated));
+  if (error) {
+    console.error('Error deleting place from Supabase:', error.message);
+  }
 }
 
 // ----------------------------------------------------------------------------
-// Timeline Events Persistence (Strictly Unique to Physical Device)
+// Timeline Events Persistence (Always Sync Directly with Supabase)
 // ----------------------------------------------------------------------------
 export async function loadTimelineEvents(
   userId: string,
   deviceId = getDeviceId()
 ): Promise<MobilityTimelineEvent[]> {
-  const deviceKey = getEventsStorageKey(deviceId);
-
   try {
     const { data, error } = await supabase
       .from('mobility_timeline_events')
@@ -463,28 +434,15 @@ export async function loadTimelineEvents(
       .order('start_time', { ascending: false });
 
     if (!error && data) {
-      localStorage.setItem(deviceKey, JSON.stringify(data));
       return data as MobilityTimelineEvent[];
     }
-  } catch {
-    // fallback
-  }
-
-  const raw =
-    localStorage.getItem(deviceKey) || localStorage.getItem(LEGACY_STORAGE_EVENTS_KEY);
-  if (raw) {
-
-    try {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
-    } catch {
-      // ignore
+    if (error) {
+      console.warn('Supabase query error on mobility_timeline_events:', error.message);
     }
+  } catch (err) {
+    console.warn('Network error loading timeline events from Supabase:', err);
   }
 
-  // Return empty list if no timeline events exist (zero hallucinated sample events)
   return [];
 }
 
@@ -493,34 +451,27 @@ export async function persistTimelineEvent(
   event: MobilityTimelineEvent,
   deviceId = getDeviceId()
 ): Promise<void> {
-  const deviceKey = getEventsStorageKey(deviceId);
   const enrichedEvent: MobilityTimelineEvent = {
     ...event,
+    user_id: userId,
     device_id: deviceId,
     device_name: event.device_name || getDeviceName(),
   };
 
-  try {
-    await supabase.from('mobility_timeline_events').upsert(enrichedEvent);
-  } catch {
-    // ignore
+  const { error } = await supabase.from('mobility_timeline_events').upsert(enrichedEvent);
+  if (error) {
+    console.error('Error persisting timeline event to Supabase:', error.message);
   }
-
-  const current = await loadTimelineEvents(userId, deviceId);
-  const updated = [enrichedEvent, ...current.filter((e) => e.id !== enrichedEvent.id)];
-  localStorage.setItem(deviceKey, JSON.stringify(updated));
 }
 
 // ----------------------------------------------------------------------------
-// Daily Mobility Statistics (Unique to Physical Device)
+// Daily Mobility Statistics (Always Sync Directly with Supabase)
 // ----------------------------------------------------------------------------
 export async function loadDailyMobilityStats(
   userId: string,
   statDate: string,
   deviceId = getDeviceId()
 ): Promise<DailyMobilityStats> {
-  const deviceKey = getStatsStorageKey(deviceId, statDate);
-
   const cleanStats: DailyMobilityStats = {
     user_id: userId,
     device_id: deviceId,
@@ -547,30 +498,10 @@ export async function loadDailyMobilityStats(
       .maybeSingle();
 
     if (!error && data) {
-      localStorage.setItem(deviceKey, JSON.stringify(data));
       return data as DailyMobilityStats;
     }
-
-    if (!error && !data) {
-      // Supabase verified: no mobility stats exist for this date -> synchronize clean zero
-      localStorage.setItem(deviceKey, JSON.stringify(cleanStats));
-      localStorage.removeItem(LEGACY_STORAGE_STATS_KEY);
-      localStorage.removeItem(`${LEGACY_STORAGE_STATS_KEY}_${statDate}`);
-      return cleanStats;
-    }
-  } catch {
-    // fallback only if network request threw an exception
-  }
-
-  const raw =
-    localStorage.getItem(deviceKey) ||
-    localStorage.getItem(`${LEGACY_STORAGE_STATS_KEY}_${statDate}`);
-  if (raw) {
-    try {
-      return JSON.parse(raw);
-    } catch {
-      // ignore
-    }
+  } catch (err) {
+    console.warn('Error loading daily mobility stats from Supabase:', err);
   }
 
   return cleanStats;
@@ -582,7 +513,6 @@ export async function updateDailyMobilityStats(
   deviceId = getDeviceId()
 ): Promise<DailyMobilityStats> {
   const today = new Date().toISOString().slice(0, 10);
-  const deviceKey = getStatsStorageKey(deviceId, today);
   const current = await loadDailyMobilityStats(userId, today, deviceId);
 
   const updated: DailyMobilityStats = {
@@ -604,12 +534,14 @@ export async function updateDailyMobilityStats(
   };
 
   try {
-    await supabase.from('daily_mobility_stats').upsert(updated);
-  } catch {
-    // ignore
+    const { error } = await supabase.from('daily_mobility_stats').upsert(updated);
+    if (error) {
+      console.error('Error upserting daily mobility stats to Supabase:', error.message);
+    }
+  } catch (err) {
+    console.warn('Network error saving daily mobility stats to Supabase:', err);
   }
 
-  localStorage.setItem(deviceKey, JSON.stringify(updated));
   return updated;
 }
 

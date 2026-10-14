@@ -183,6 +183,41 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, [preferences.theme]);
 
+  // Always sync preferences from Supabase cloud profile
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user?.user_metadata?.preferences) {
+        setPreferences((prev) => {
+          const synced = { ...prev, ...user.user_metadata.preferences };
+          try {
+            localStorage.setItem(PREFS_STORAGE_KEY, JSON.stringify(synced));
+          } catch {
+            // ignore
+          }
+          return synced;
+        });
+      }
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user?.user_metadata?.preferences) {
+        setPreferences((prev) => {
+          const synced = { ...prev, ...session.user.user_metadata.preferences };
+          try {
+            localStorage.setItem(PREFS_STORAGE_KEY, JSON.stringify(synced));
+          } catch {
+            // ignore
+          }
+          return synced;
+        });
+      }
+    });
+
+    return () => {
+      authListener?.subscription?.unsubscribe();
+    };
+  }, []);
+
   // Save to localStorage whenever preferences change
   const updatePreferences = useCallback((newPrefs: Partial<UserPreferences>) => {
     setPreferences((prev) => {
