@@ -10,9 +10,12 @@
 
 <p align="center">
   <a href="#key-features">Features</a> •
+  <a href="#navigation--ui-architecture">Navigation & UI</a> •
+  <a href="#security--administrative-governance">Admin & Security</a> •
   <a href="#location-timeline--mobility">Location & Mobility</a> •
-  <a href="#architecture">Architecture</a> •
+  <a href="#architecture--tech-stack">Architecture</a> •
   <a href="#database-schema">Database Schema</a> •
+  <a href="#mobile-app-roadmap">Mobile App</a> •
   <a href="#quick-start">Quick Start</a> •
   <a href="#license">License</a>
 </p>
@@ -28,6 +31,7 @@ Traditional personal finance apps only track what you spent *after* you've alrea
 2. **Physical Mobility & Telemetry** (Real-time GPS velocity, traffic-resilient transit detection, commute fuel/fare costs)
 3. **Location-Aware Geofence Reminders** (Contextual payment alerts upon arrival at supermarkets, landlords, or offices)
 4. **Daily Life Operations** (Payable/receivable bills, personal asset vault, subscription burn rate, and peer IOUs)
+5. **Zero-Hallucination Cloud Sync** (Direct Supabase database synchronization with strictly verified starting balances)
 
 ---
 
@@ -40,15 +44,15 @@ Traditional personal finance apps only track what you spent *after* you've alrea
 * Automatically identifies category, transaction type, date, and deducts the corresponding account balance.
 * **100% Dynamic Currency Support**: Works seamlessly across 40+ currencies (USD `$`, LKR `Rs`, EUR `€`, GBP `£`, INR `₹`, CAD `CA$`, etc.) with zero hardcoded currency symbols.
 
-### 2. 📍 Location Timeline & Geofence Payment Reminders *(NEW)*
+### 2. 📍 Location Timeline & Geofence Payment Reminders
 * **Geofence Sentinel**: Save places (Supermarkets, Landlord's Office, Corporate HQ) with adjustable radii ($100\text{m} - 1500\text{m}$).
 * **Proximity Triggers**:
   * **Budget Category Alert**: Entering a grocery store alerts you to your remaining monthly grocery budget allowance.
   * **Task Completion Prompt**: Approaching your landlord prompts 1-click settlement of your pending rent task.
   * **Social IOU Split**: Meeting a friend triggers a reminder to settle shared expenses.
-* **Global Proximity Banner**: Dismissible top banner notifies you across any module.
+* **Global Proximity Banner**: Dismissible responsive top banner (`relative xl:sticky xl:top-16`) alerts you across any module without obscuring navigation controls.
 
-### 3. 🚗 Traffic-Resilient Speed & Commute Intelligence *(NEW)*
+### 3. 🚗 Traffic-Resilient Speed & Commute Intelligence
 * **Haversine Velocity Engine**: Evaluates movement speed from browser GPS or desktop simulator:
   * 🚶 **Walking**: $1.5 - 8$ km/h
   * 🚲 **Cycling**: $8 - 25$ km/h
@@ -63,7 +67,7 @@ Traditional personal finance apps only track what you spent *after* you've alrea
 * Connect daily checklists directly to your balance sheet:
   * **Payables (Bills to Pay)**: Checking off *"Pay WiFi Bill"* deducts the bill from checking.
   * **Receivables (Income Expected)**: Completing *"Deliver Freelance Milestone"* logs the deposit.
-* **Daily "No-Spend" Streak Challenge**: Gamified habit tracker to reinforce mindful spending.
+* **Daily "No-Spend" Streak Challenge**: Gamified habit tracker to reinforce mindful spending, synced directly with Supabase.
 
 ### 5. 📦 Personal Asset & Inventory Vault
 * Catalog high-value possessions (electronics, vehicles, tools, collectibles).
@@ -79,8 +83,13 @@ Traditional personal finance apps only track what you spent *after* you've alrea
 * Record debts (*"They Owe Me"* vs. *"I Owe Them"*).
 * 1-Click settlement modal that updates contact balances and records settled payments into your ledger.
 
-### 8. 🛡️ Privacy-Preserving Admin Portal
-* Oversee active platform users, aggregate event telemetry, and system health without exposing any private monetary sums or personal notes.
+### 8. 🛡️ Strict Admin Governance & Zero-Hallucination Policy
+* **Strict Admin Authorization**: Platform administrative operations and telemetry are strictly restricted to `layanmoyura@proton.me`. Generic email pattern matching and demo passkeys have been completely removed.
+* **Discrete & Hidden Controls**: No public admin button is rendered in the public navigation header. Authorized access is granted exclusively via:
+  * Keyboard shortcut: `Ctrl + Shift + A` (or `Cmd + Shift + A` on macOS)
+  * URL hash: `#admin`
+  * System Settings: Admin Portal link rendered strictly when logged in as `layanmoyura@proton.me`
+* **1-Click Platform & Workspace Refresh**: Full database purge capability that wipes all 11 operational tables, clears stale browser `localStorage`, and guarantees primary accounts start at strictly `0.00` balance with zero artificial sample data.
 
 ### 9. 🎨 Dual Themes & Complete Localization
 * High-contrast OLED **Dark Mode** and clean **Light Mode**.
@@ -88,13 +97,13 @@ Traditional personal finance apps only track what you spent *after* you've alrea
 
 ### 10. 🔒 Hardware-Bound Location Uniqueness & Single-Device Lock
 * **Hardware-Partitioned Location Data**: GPS fixes, velocity timeline events, and transit statistics are strictly partitioned by unique physical `device_id`, preventing GPS crosstalk or route contamination across devices.
-* **1 Active Device Enforcement**: Users cannot be actively logged in from multiple devices simultaneously. Attempting to log in on a second device displays an active session transfer prompt. Logging in on a new device terminates the previous device session.
+* **1 Active Device Enforcement**: Users cannot be actively logged in from multiple devices simultaneously (`user_device_sessions`). Attempting to log in on a second device displays an active session transfer prompt.
 * **Continuous Heartbeat Sentinel**: Background heartbeat monitors session ownership; if a remote device claims the account, the local device is immediately logged out safely.
 
-### 11. 🔄 Independent Module-by-Module Reset Controls *(NEW)*
+### 11. 🔄 Independent Module-by-Module Reset Controls
 * Each subsystem possesses its own dedicated **Reset Button** directly inside its header toolbar:
   * **Reset Transactions**: Deletes all recorded transactions and resets ledger history.
-  * **Reset Accounts**: Resets all balances to zero and restores a clean default Checking Account.
+  * **Reset Accounts**: Resets all balances to zero and restores a clean default Checking Account (`0.00`).
   * **Reset Budgets**: Clears all monthly category limits for the active period.
   * **Reset Tasks**: Clears to-dos/bills and resets your daily no-spend check-in streak.
   * **Reset Timeline**: Clears recorded transit trips, timeline events, and resets device telemetry.
@@ -104,41 +113,66 @@ Traditional personal finance apps only track what you spent *after* you've alrea
   * **Reset Preferences**: Restores system theme, base currency, and timezone defaults.
 * **Accidental Click Protection**: Every reset button is gated with a clear confirmation dialog and active spinning indicator during execution.
 
-### 12. 📱 Responsive Mobile, Tablet & Touch Engineering *(NEW)*
-* **Mobile Chapter Navigator**: Help Guide features a horizontal swipeable pill bar on mobile/tablet viewports (`no-scrollbar` with momentum touch scrolling), preserving screen real estate before transitioning to a sticky sidebar on desktop.
-* **Universal Soft-Keyboard Overflow Defense**: All 10 modals implement `max-h-[90vh] overflow-y-auto` to prevent buttons from being pushed off screen when virtual keyboards open on iOS and Android.
-* **Compact Header Layout**: Mobile navigation buttons dynamically scale down (`gap-1 sm:gap-2.5`, `p-1.5 sm:p-2`) to avoid multi-row wrapping on 360px–375px screens.
-* **Custom Kinetic Favicon**: High-resolution SVG favicon featuring the Apex summit chevron and telemetry diamond in glowing emerald and cyber teal.
+### 12. 🧭 Two-Row Enterprise Navigation & Responsive Touch Engineering
+* **Two-Row Decoupled Architecture**:
+  * **Row 1 (Header Control Bar)**: Contains the unconstrained brand identity (`shrink-0` to eliminate text truncation or logo overlap), Live Platform Status indicator, Quick Currency Switcher, Dark/Light Theme toggle, Device Session status, User Identity pill, Mobile Drawer Toggle, and Logout.
+  * **Row 2 (Module Ribbon)**: Dedicated, full-width secondary navigation ribbon for the 10 core operational tabs (`Overview`, `Daily Tasks`, `Timeline & Mobility`, `Ledger`, `Accounts`, `Budgets`, `Assets`, `Subscriptions`, `Social IOU`, `Help & Guide`).
+* **Active Tab Auto-Centering**: Smooth automatic scroll centering keeps your active module centered when switching views or resizing.
+* **Gradient Edge Fade Masks**: Dynamic left and right fade masks indicate scrollability without displaying bulky scrollbars.
+* **Slide-Over Touch Drawer**: On mobile screens (`< 768px`), a slide-over mobile drawer presents vertical module navigation with badge indicators, full touch targets, and instant module jumping.
+* **Soft-Keyboard Overflow Defense**: All 10 modals implement `max-h-[90vh] overflow-y-auto` to prevent buttons from being clipped by virtual keyboards on iOS and Android.
+
+### 13. ☁️ Cloud-First Direct Supabase Synchronization
+* All saved places, mobility timeline events, daily statistics, tasks, and streaks are persisted directly in Supabase PostgreSQL tables.
+* Stale `localStorage` caching has been eliminated in favor of real-time database queries, ensuring consistent state across reloads and multi-device session migrations.
 
 ---
 
 ## 🛠️ Architecture & Tech Stack
 
 ```text
-       [ User Browser / PWA Mobile View ]
-                      │
-          (Vite + React + Tailwind CSS)
-                      │
-     ┌────────────────┴────────────────────────┐
-     │                                         │
-     ▼ (REST & Row-Level Security)             ▼ (AI & Telemetry)
-[ Supabase PostgreSQL & Auth ]        [ Supabase Edge Functions ]
-  • accounts      • saved_places               │
-  • transactions  • mobility_events            ▼
-  • tasks         • daily_mobility       [ Google Gemini AI ]
-  • assets        • subscriptions
-  • budgets       • contacts_ledger
-  • device_sessions
+       [ User Browser / Mobile View / Capacitor Native App ]
+                                 │
+                 (React 19 + TypeScript + Tailwind CSS v4)
+                                 │
+     ┌───────────────────────────┴───────────────────────────┐
+     │                                                       │
+     ▼ (Direct REST & Row-Level Security)                    ▼ (AI Parsing Request)
+[ Supabase PostgreSQL 15+ & Auth ]                  [ Supabase Edge Functions ]
+  • accounts          • saved_places                         │
+  • transactions      • mobility_timeline_events             ▼
+  • budgets           • daily_mobility_stats            [ Google Gemini AI ]
+  • tasks             • user_device_sessions            (Gemini 2.0 / 2.5 Flash)
+  • personal_assets   • categories
+  • subscriptions     • contacts_ledger
 ```
 
-| Component | Technology | Role |
-| :--- | :--- | :--- |
-| **Frontend** | React 18, TypeScript, Tailwind CSS, Lucide Icons | Responsive SPA & PWA UI |
-| **State & Context** | React Context (`PreferencesContext`) | Theme, Dynamic Currency, Timezone state |
-| **Device Sentinel** | Web Crypto UUID + Hardware Heartbeat Sentinel | 1-Active-Device lock & location isolation |
-| **Geolocation Engine** | HTML5 Geolocation API + Haversine Formula | Speed tracking, traffic classifier & Geofencing |
-| **Database & Auth** | Supabase (PostgreSQL, GoTrue, RLS) | Secure multi-tenant cloud storage |
-| **AI Parsing** | Supabase Edge Function + Gemini Flash | Natural language expense parsing |
+| Component | Technology | Version / Specification | Role |
+| :--- | :--- | :--- | :--- |
+| **Frontend Framework** | [React](https://react.dev/) | `^19.2.8` | Declarative UI & Component Architecture |
+| **Type Safety** | [TypeScript](https://www.typescriptlang.org/) | `~6.0.2` | Strict compile-time validation & interfaces |
+| **Build Tooling** | [Vite](https://vite.dev/) | `^8.3.0` | Ultra-fast HMR, bundling, and asset pipeline |
+| **Styling Engine** | [Tailwind CSS v4](https://tailwindcss.com/) | `^4.3.3` (`@tailwindcss/vite`) | Utility-first responsive design & dark mode |
+| **Iconography** | [Lucide React](https://lucide.dev/) | `^1.55.0` | Accessible fintech and operational icon library |
+| **Backend & Database** | [Supabase](https://supabase.com/) | `@supabase/supabase-js: ^2.117.3` | PostgreSQL, Auth, Row-Level Security (RLS) |
+| **AI Intelligence** | [Google Gemini](https://ai.google.dev/) | 2.0 / 2.5 Flash | Natural language expense parsing & categorization |
+| **Hardware Sentinel** | Web Crypto UUID | Hardware Fingerprint | 1-Active-Device lock & telemetry isolation |
+| **Geolocation Engine** | HTML5 Geolocation + Haversine | $O(1)$ Math Calculations | Speed tracking, traffic hysteresis, geofences |
+
+---
+
+## 📱 Mobile App Roadmap (Capacitor)
+
+Apex LifeOS is engineered with a mobile-first PWA responsive foundation that smoothly translates into native Android (`.apk` / `.aab`) and iOS (`.ipa`) applications using **Capacitor**:
+
+* **Runtime Wrapper**: [`@capacitor/core`](https://capacitorjs.com/) and `@capacitor/cli`
+* **Native Geolocation**: [`@capacitor/geolocation`](https://capacitorjs.com/docs/apis/geolocation) for background location telemetry and fine-grained GPS fixes
+* **Hardware Device ID**: [`@capacitor/device`](https://capacitorjs.com/docs/apis/device) for physical device fingerprinting
+* **Native Storage**: [`@capacitor/preferences`](https://capacitorjs.com/docs/apis/preferences) for encrypted token storage
+* **Haptics & Feedback**: [`@capacitor/haptics`](https://capacitorjs.com/docs/apis/haptics) for vibration feedback on geofence arrival and ledger inputs
+
+> [!NOTE]
+> Review the detailed implementation guide in [mobile_app_development_plan.md](mobile_app_development_plan.md) for full phase-by-phase mobile packaging steps, Gradle configurations, and app store deployment.
 
 ---
 
@@ -147,14 +181,14 @@ Traditional personal finance apps only track what you spent *after* you've alrea
 ```text
 ai-finance-tracker/
 ├── public/
-│   ├── favicon.svg                  # Custom Apex LifeOS SVG luxury fintech favicon
+│   ├── favicon.svg                  # High-resolution Apex LifeOS SVG luxury fintech favicon
 │   └── poster.html                  # Marketing poster and feature showcase
 ├── src/
 │   ├── components/
-│   │   ├── AccountManager.tsx           # Multi-account balance sheets & reset
-│   │   ├── AdminAuthModal.tsx           # Master passkey admin authorization modal
-│   │   ├── AdminPortal.tsx              # Platform user telemetry & audit logs
-│   │   ├── AiTransactionInput.tsx       # Natural language expense logger
+│   │   ├── AccountManager.tsx           # Multi-account balance sheets & reset (starts at 0.00)
+│   │   ├── AdminAuthModal.tsx           # Strict admin authorization modal (layanmoyura@proton.me)
+│   │   ├── AdminPortal.tsx              # Platform user telemetry, audit logs & 1-click DB purge
+│   │   ├── AiTransactionInput.tsx       # Natural language expense logger with Gemini Flash
 │   │   ├── AssetManager.tsx             # Asset inventory, warranty vault & reset
 │   │   ├── AuthModal.tsx                # Single-device session login & registration
 │   │   ├── BudgetManager.tsx            # Category limits, progress & reset
@@ -163,22 +197,27 @@ ai-finance-tracker/
 │   │   ├── HelpGuide.tsx                # User-facing step-by-step documentation
 │   │   ├── LocationTimelineManager.tsx  # Telemetry, commute stats, simulator & reset
 │   │   ├── MetricCards.tsx              # Executive Net Worth & burn rate cards
-│   │   ├── Navbar.tsx                   # Top navigation with alert badges
+│   │   ├── Navbar.tsx                   # Two-Row Navigation bar with module ribbon & mobile drawer
 │   │   ├── ProximityAlertBanner.tsx     # Global geofence payment alert banner
-│   │   ├── SettingsModal.tsx            # Theme, currency, timezone modal & reset
+│   │   ├── SettingsModal.tsx            # Theme, currency, timezone modal & discrete admin entry
 │   │   ├── SubscriptionManager.tsx      # Recurring billing, cancellation links & reset
 │   │   ├── TaskManager.tsx              # Operations, financial task bridge & reset
 │   │   └── TransactionList.tsx          # Filterable ledger transactions & reset
 │   ├── context/
 │   │   └── PreferencesContext.tsx       # Dynamic currency & theme context
 │   ├── services/
-│   │   ├── adminTelemetry.ts           # Privacy-first audit logging
+│   │   ├── adminTelemetry.ts           # Privacy-first audit logging & admin email verification
+│   │   ├── databaseAdminService.ts     # 1-Click database purge & clean 0.00 balance reset
 │   │   ├── deviceSessionService.ts     # Single-device session lock & hardware UUID
 │   │   └── locationMobilityService.ts   # Haversine math, traffic classifier, simulator
-│   └── types/
-│       └── index.ts                     # Core TypeScript schemas
-└── supabase/
-    └── migrations/                      # Database DDL & RLS security policies
+│   ├── types/
+│   │   └── index.ts                     # Core TypeScript schemas
+│   ├── App.tsx                          # Root coordinator & global shortcut handler (Ctrl+Shift+A)
+│   └── supabaseClient.ts               # Authenticated Supabase client instance
+├── database_schema.md                   # Complete PostgreSQL DDL, RLS policies & indexes
+├── setup_guide.md                       # Installation, environment setup & deployment guide
+├── contributing_guidelines.md           # Development workflow, linting & security guidelines
+└── project_readme.md                    # Project architectural summary
 ```
 
 ---
@@ -195,12 +234,12 @@ npm install
 ### 2. Configure Environment Variables
 Create a `.env` file in the project root:
 ```env
-VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
 
-### 3. Run Database Migrations
-Execute the SQL files inside `supabase/migrations/` in your **Supabase SQL Editor** to initialize the database tables and Row-Level Security (RLS) policies.
+### 3. Initialize Database Tables
+Execute the complete SQL definitions from [database_schema.md](database_schema.md) in your **Supabase SQL Editor** to initialize all 11 tables and Row-Level Security (RLS) policies.
 
 ### 4. Launch Development Server
 ```bash
@@ -208,6 +247,12 @@ npm run dev
 ```
 
 Visit `http://localhost:5173` in your browser.
+
+### 5. Access Administrator Portal
+To access the administrative portal when logged in as `layanmoyura@proton.me`:
+* Press `Ctrl + Shift + A` (or `Cmd + Shift + A` on macOS)
+* Or append `#admin` to your browser URL
+* Or open **System Settings** (gear icon) and click **Admin Portal**
 
 ---
 
