@@ -28,7 +28,6 @@ Most finance apps operate in isolation—they only track historical debits and c
 | **AI Ledger Logger & Voice** | Natural language voice & text expense entry across 40+ global currencies (`$`, `Rs`, `€`, `£`, `₹`, etc.) | Google Gemini 2.0 / 2.5 Flash + Web Speech API (17+ languages, live waveforms, auto-parse) |
 | **Daily Tasks & Bills** | Operational to-dos with financial bridges and daily "No-Spend" streak challenge | Checking off tasks logs ledger entries; cloud-synced with Supabase |
 | **Location & Timeline** | GPS velocity gauge, commute legs, dwell stops, and traffic-resilient transit detection | Haversine formula + traffic hysteresis + Route Simulator |
-| **Tax Mileage Engine** | Work vs. Personal trip classification, standard mileage tax deductions (IRS/CRA/HMRC), CSV export & printable reimbursement reports | Accrued tax write-off calculator with configurable rates & units (km/mi) |
 | **Geofenced Places** | Saved waypoints with proximity radii triggering contextual payment alerts on arrival | Integrated with Budgets, Tasks & IOUs; responsive top proximity banner |
 | **Financial Accounts** | Multi-account balance sheets (Checking, Savings, Cash, Credit Card) | Strict `0.00` starting balance policy; zero hallucinated funds |
 | **Cash & ATM Vault** | In-hand physical cash wallet tracking, 1-click ATM withdrawals with bank auto-transfer, voice cash logging, and bill audits | Dedicated cash wallet balance, voice dictation, petty cash logging, and physical wallet reconciliation |

@@ -147,12 +147,6 @@ Traditional personal finance apps only track what you spent *after* you've alrea
 * **Instant Payment Links**: Generates direct deep links (UPI, Venmo, PayPal, CashApp) and Web Share API / WhatsApp formatted text.
 * **1-Click Social Ledger Sync**: Seamlessly logs individual shares into the peer-to-peer `contacts_ledger` without requiring companions to download the app.
 
-### 17. 🚗 Commute Mileage Tax Deduction & Reimbursement Engine
-* **Business vs. Personal Classification**: Categorize mobility transit legs with single-click ease.
-* **Standard Mileage Write-Offs**: Automatically calculates allowable tax write-offs using configurable rates (IRS \$0.67/mi, CRA \$0.70/km, HMRC £0.45/mi).
-* **Strict Public Transit Exemption**: Public transport (trains, buses, subways, ferries) is strictly excluded from vehicle mileage formulas to ensure tax compliance.
-* **Exportable Reports**: Generate itemized CSV files and printable, audit-ready reimbursement forms.
-
 ---
 
 ## 🛠️ Architecture & Tech Stack
@@ -225,7 +219,6 @@ ai-finance-tracker/
 │   │   ├── HelpGuide.tsx                # User-facing step-by-step documentation
 │   │   ├── LocationTimelineManager.tsx  # Telemetry, commute stats, simulator & reset
 │   │   ├── MetricCards.tsx              # Executive Net Worth & burn rate cards
-│   │   ├── MileageTaxReportModal.tsx    # Mileage tax write-off audit & printable report
 │   │   ├── Navbar.tsx                   # Two-Row Navigation bar with module ribbon & mobile drawer
 │   │   ├── PredictiveCashFlow.tsx       # 30/60/90-day cash projection & What-If stress sandbox
 │   │   ├── ProximityAlertBanner.tsx     # Global geofence payment alert banner
