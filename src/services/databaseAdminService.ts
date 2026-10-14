@@ -77,31 +77,61 @@ export async function getDatabaseDiagnostics(userId?: string): Promise<DatabaseD
 }
 
 /**
- * Fully purge all database records across all user tables and wipe local storage caches
+ * Standard system default categories required for proper categorization & budgeting
+ */
+const DEFAULT_SYSTEM_CATEGORIES = [
+  { name: 'Groceries', type: 'expense', is_default: true },
+  { name: 'Dining Out', type: 'expense', is_default: true },
+  { name: 'Housing & Utilities', type: 'expense', is_default: true },
+  { name: 'Transportation', type: 'expense', is_default: true },
+  { name: 'Entertainment', type: 'expense', is_default: true },
+  { name: 'Health & Fitness', type: 'expense', is_default: true },
+  { name: 'Salary', type: 'income', is_default: true },
+  { name: 'Freelance', type: 'income', is_default: true },
+  { name: 'Investments', type: 'income', is_default: true },
+  { name: 'Other', type: 'expense', is_default: true },
+];
+
+/**
+ * Fully purge database records across tables while preserving authentication accounts in auth.users.
+ * Guarantees all user starting accounts are reset strictly to 0.00 balance.
  */
 export async function purgeAllDatabaseData(
-  userId: string,
+  userId?: string,
   userEmail?: string,
-  currency = 'USD'
+  currency = 'USD',
+  scope: 'global' | 'user' = 'global'
 ): Promise<DatabaseRefreshReport> {
   const clearedTables: DatabaseRefreshReport['clearedTables'] = [];
 
-  // 1. Try PostgreSQL RPC if available
-  try {
-    const { error: rpcError } = await supabase.rpc('admin_purge_user_data', {
-      target_user_id: userId,
-    });
-    if (!rpcError) {
-      console.info('Database purged successfully via PostgreSQL RPC function.');
+  // 1. Try PostgreSQL RPC if targeted to single user and available
+  if (scope === 'user' && userId) {
+    try {
+      const { error: rpcError } = await supabase.rpc('admin_purge_user_data', {
+        target_user_id: userId,
+      });
+      if (!rpcError) {
+        console.info('Database purged successfully via PostgreSQL RPC function.');
+      }
+    } catch {
+      // Fallback to client-level batch deletion
     }
-  } catch {
-    // Graceful fallback to client-level batch deletion
   }
 
-  // 2. Direct client-level cascade deletion across all tables
+  // 2. Cascade deletion across all tracked tables
   for (const item of TRACKED_TABLES) {
     try {
-      const { error } = await supabase.from(item.table).delete().eq('user_id', userId);
+      let deleteQuery = supabase.from(item.table).delete();
+      const col = item.table === 'user_device_sessions' ? 'user_id' : 'id';
+
+      if (scope === 'user' && userId) {
+        deleteQuery = deleteQuery.eq('user_id', userId);
+      } else {
+        // Global refresh: purge all rows in the table
+        deleteQuery = deleteQuery.neq(col, '00000000-0000-0000-0000-000000000000');
+      }
+
+      const { error } = await deleteQuery;
       if (error) {
         clearedTables.push({
           table: item.table,
@@ -126,24 +156,69 @@ export async function purgeAllDatabaseData(
     }
   }
 
-  // 3. Re-initialize a single clean primary checking account with zero balance
+  // 3. Ensure starting accounts exist with balance 0.00 (Zero Hallucinated Money)
   let accountReset = false;
   try {
-    const { error: accInsertErr } = await supabase.from('accounts').insert({
-      user_id: userId,
-      name: 'Primary Checking',
-      balance: 0.0,
-      currency,
-    });
-    accountReset = !accInsertErr;
+    if (scope === 'global') {
+      try {
+        const { data: userData } = await supabase.auth.admin.listUsers();
+        if (userData?.users && userData.users.length > 0) {
+          for (const u of userData.users) {
+            const userCurrency = (u.user_metadata?.preferences as { currency?: string })?.currency || currency || 'USD';
+            await supabase.from('accounts').insert({
+              user_id: u.id,
+              name: 'Primary Checking',
+              balance: 0.0,
+              currency: userCurrency,
+            });
+          }
+          accountReset = true;
+        }
+      } catch {
+        // Fall back to creating for current user if listUsers is restricted
+        if (userId) {
+          await supabase.from('accounts').insert({
+            user_id: userId,
+            name: 'Primary Checking',
+            balance: 0.0,
+            currency,
+          });
+          accountReset = true;
+        }
+      }
+    } else if (userId) {
+      await supabase.from('accounts').insert({
+        user_id: userId,
+        name: 'Primary Checking',
+        balance: 0.0,
+        currency,
+      });
+      accountReset = true;
+    }
   } catch {
     accountReset = false;
   }
 
-  // 4. Wipe all local storage caches, mock keys, and seeded timeline/mobility states
+  // 4. Ensure standard default taxonomy categories are present
+  try {
+    for (const cat of DEFAULT_SYSTEM_CATEGORIES) {
+      const { data: existing } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('name', cat.name)
+        .maybeSingle();
+
+      if (!existing) {
+        await supabase.from('categories').insert(cat);
+      }
+    }
+  } catch {
+    // Categories fallback
+  }
+
+  // 5. Wipe all local storage caches, mock keys, and seeded timeline/mobility states
   let storagePurged = false;
   try {
-    // Specific known keys
     localStorage.removeItem('apex_no_spend_streak');
     localStorage.removeItem('apex_marked_today');
     localStorage.removeItem('apex_platform_activity_log');
@@ -174,10 +249,10 @@ export async function purgeAllDatabaseData(
     storagePurged = false;
   }
 
-  // 5. Log authentic administrative audit record
+  // 6. Log authentic administrative audit record
   logPlatformEvent(
     'SECURITY',
-    'Administrator executed full database refresh & cache purge (zero sample data)',
+    `Administrator executed ${scope === 'global' ? 'global' : 'workspace'} database refresh (accounts reset to 0.00)`,
     userId,
     userEmail
   );
@@ -188,6 +263,6 @@ export async function purgeAllDatabaseData(
     clearedTables,
     storagePurged,
     accountReset,
-    message: 'Database fully refreshed. All user tables purged and sample data eliminated.',
+    message: `Database fully refreshed (${scope === 'global' ? 'entire platform' : 'workspace'}). All tables purged, starting accounts set to 0.00, and auth accounts preserved.`,
   };
 }

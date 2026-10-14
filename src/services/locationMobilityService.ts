@@ -24,53 +24,6 @@ const LEGACY_STORAGE_PLACES_KEY = 'apex_saved_places';
 const LEGACY_STORAGE_EVENTS_KEY = 'apex_timeline_events';
 const LEGACY_STORAGE_STATS_KEY = 'apex_daily_mobility';
 
-// Default mock coordinates (Centred around a vibrant metropolitan district)
-export const DEFAULT_ANCHOR_COORDS = {
-  latitude: 40.7128,
-  longitude: -74.006,
-};
-
-
-// Default seed places for immediate out-of-the-box exploration
-export const DEFAULT_INITIAL_PLACES: Omit<SavedPlace, 'id' | 'user_id'>[] = [
-  {
-    name: 'City Supermarket (Trader Joe’s)',
-    latitude: 40.7142,
-    longitude: -74.0082,
-    radius_meters: 350,
-    reminder_type: 'budget',
-    reminder_message: 'Remember your grocery budget for fresh weekly produce!',
-    icon_type: 'shopping-cart',
-  },
-  {
-    name: 'Metropolitan Office HQ',
-    latitude: 40.7185,
-    longitude: -73.9995,
-    radius_meters: 400,
-    reminder_type: 'task',
-    reminder_message: 'Submit travel expense receipts to finance operations',
-    icon_type: 'building',
-  },
-  {
-    name: 'Landlord & Property Office',
-    latitude: 40.7095,
-    longitude: -74.0125,
-    radius_meters: 250,
-    reminder_type: 'task',
-    reminder_message: 'Pay monthly apartment rent and collect utility invoice',
-    icon_type: 'home',
-  },
-  {
-    name: 'Central Transit Hub & Metro',
-    latitude: 40.7115,
-    longitude: -74.002,
-    radius_meters: 300,
-    reminder_type: 'custom',
-    reminder_message: 'Top-up monthly subway & commuter transit pass',
-    icon_type: 'train',
-  },
-];
-
 // ============================================================================
 // Mathematical Geodesic Distance (Haversine Formula)
 // ============================================================================
@@ -413,12 +366,12 @@ export async function loadSavedPlaces(
       .or(`device_id.eq.${deviceId},device_id.is.null`)
       .order('created_at', { ascending: false });
 
-    if (!error && data && data.length > 0) {
+    if (!error && data) {
       localStorage.setItem(deviceKey, JSON.stringify(data));
       return data as SavedPlace[];
     }
   } catch {
-    // Fall back to local storage
+    // Fall back to local storage only if network failed
   }
 
   // 2. Fall back to device-specific localStorage
@@ -449,8 +402,8 @@ export async function persistSavedPlace(
     user_id: userId,
     device_id: deviceId,
     name: place.name || 'New Geofence Place',
-    latitude: place.latitude || DEFAULT_ANCHOR_COORDS.latitude,
-    longitude: place.longitude || DEFAULT_ANCHOR_COORDS.longitude,
+    latitude: place.latitude !== undefined ? place.latitude : 0,
+    longitude: place.longitude !== undefined ? place.longitude : 0,
     radius_meters: place.radius_meters || 300,
     category_id: place.category_id || null,
     linked_task_id: place.linked_task_id || null,
@@ -509,7 +462,7 @@ export async function loadTimelineEvents(
       .eq('device_id', deviceId)
       .order('start_time', { ascending: false });
 
-    if (!error && data && data.length > 0) {
+    if (!error && data) {
       localStorage.setItem(deviceKey, JSON.stringify(data));
       return data as MobilityTimelineEvent[];
     }
@@ -655,9 +608,11 @@ export async function updateDailyMobilityStats(
 
 
 // ============================================================================
-// Mock GPS Route Simulation Engine
+// GPS Route Simulation Engine (Dynamic Relative Waypoints)
 // ============================================================================
 export interface SimulationWaypoint {
+  deltaLat: number;
+  deltaLng: number;
   latitude: number;
   longitude: number;
   speedKmh: number;
@@ -675,29 +630,29 @@ export interface SimulationScenario {
 export const SIMULATION_SCENARIOS: SimulationScenario[] = [
   {
     id: 'walk_supermarket',
-    name: '🚶 Walk to Supermarket (Pedestrian Pace)',
-    description: 'Walking from apartment to Trader Joe’s at 4.5 km/h to trigger grocery budget alert.',
+    name: '🚶 Pedestrian Walk (4.5 km/h Pace)',
+    description: 'Walking at pedestrian velocity to verify walking mode classifier and nearby geofence detection.',
     expectedMode: 'walking',
     waypoints: [
-      { latitude: 40.7128, longitude: -74.006, speedKmh: 4.2, description: 'Departing apartment sidewalk' },
-      { latitude: 40.7132, longitude: -74.0068, speedKmh: 4.8, description: 'Crossing pedestrian crosswalk' },
-      { latitude: 40.7137, longitude: -74.0075, speedKmh: 4.5, description: 'Approaching supermarket avenue' },
-      { latitude: 40.7142, longitude: -74.0082, speedKmh: 2.1, description: 'Arriving at Trader Joe’s Entrance (Geofenced)' },
-      { latitude: 40.7143, longitude: -74.0083, speedKmh: 0.5, description: 'Inside grocery produce aisle' },
+      { deltaLat: 0.0000, deltaLng: 0.0000, latitude: 0, longitude: 0, speedKmh: 4.2, description: 'Departing origin sidewalk' },
+      { deltaLat: 0.0004, deltaLng: 0.0008, latitude: 0.0004, longitude: 0.0008, speedKmh: 4.8, description: 'Crossing pedestrian walkway' },
+      { deltaLat: 0.0009, deltaLng: 0.0015, latitude: 0.0009, longitude: 0.0015, speedKmh: 4.5, description: 'Approaching commercial avenue' },
+      { deltaLat: 0.0014, deltaLng: 0.0022, latitude: 0.0014, longitude: 0.0022, speedKmh: 2.1, description: 'Entering geofenced destination' },
+      { deltaLat: 0.0015, deltaLng: 0.0023, latitude: 0.0015, longitude: 0.0023, speedKmh: 0.5, description: 'Inside destination' },
     ],
   },
   {
     id: 'traffic_commute',
-    name: '🚗 City Commute with Heavy Traffic Jam (Crawling 0–14 km/h)',
+    name: '🚗 City Commute with Traffic Congestion (0–15 km/h)',
     description: 'Stop-and-go urban traffic test. Confirms vehicle mode remains locked despite crawling & red lights.',
     expectedMode: 'vehicle',
     waypoints: [
-      { latitude: 40.7128, longitude: -74.006, speedKmh: 28.5, description: 'Pulling out of parking garage' },
-      { latitude: 40.714, longitude: -74.005, speedKmh: 12.0, description: 'Hit morning rush hour congestion' },
-      { latitude: 40.715, longitude: -74.0042, speedKmh: 0.0, description: 'Halted at red light (Waiting in traffic)' },
-      { latitude: 40.7158, longitude: -74.0035, speedKmh: 8.5, description: 'Crawling in stop-and-go traffic' },
-      { latitude: 40.717, longitude: -74.0018, speedKmh: 14.2, description: 'Slow acceleration through intersection' },
-      { latitude: 40.7185, longitude: -73.9995, speedKmh: 1.0, description: 'Pulling into Office parking spot' },
+      { deltaLat: 0.0000, deltaLng: 0.0000, latitude: 0, longitude: 0, speedKmh: 28.5, description: 'Pulling out of parking garage' },
+      { deltaLat: 0.0012, deltaLng: 0.0010, latitude: 0.0012, longitude: 0.0010, speedKmh: 12.0, description: 'Hit morning rush hour congestion' },
+      { deltaLat: 0.0022, deltaLng: 0.0018, latitude: 0.0022, longitude: 0.0018, speedKmh: 0.0, description: 'Halted at red light (Waiting in traffic)' },
+      { deltaLat: 0.0030, deltaLng: 0.0025, latitude: 0.0030, longitude: 0.0025, speedKmh: 8.5, description: 'Crawling in stop-and-go traffic' },
+      { deltaLat: 0.0042, deltaLng: 0.0042, latitude: 0.0042, longitude: 0.0042, speedKmh: 14.2, description: 'Slow acceleration through intersection' },
+      { deltaLat: 0.0057, deltaLng: 0.0065, latitude: 0.0057, longitude: 0.0065, speedKmh: 1.0, description: 'Pulling into destination parking spot' },
     ],
   },
   {
@@ -706,22 +661,22 @@ export const SIMULATION_SCENARIOS: SimulationScenario[] = [
     description: 'Fast arterial vehicle commute to calculate distance & fuel cost accurately.',
     expectedMode: 'vehicle',
     waypoints: [
-      { latitude: 40.7128, longitude: -74.006, speedKmh: 35.0, description: 'Entering highway on-ramp' },
-      { latitude: 40.716, longitude: -74.001, speedKmh: 68.0, description: 'Cruising at highway speed' },
-      { latitude: 40.722, longitude: -73.992, speedKmh: 74.5, description: 'Express expressway transit' },
-      { latitude: 40.728, longitude: -73.985, speedKmh: 52.0, description: 'Taking downtown exit ramp' },
-      { latitude: 40.731, longitude: -73.98, speedKmh: 22.0, description: 'Arriving at regional business park' },
+      { deltaLat: 0.0000, deltaLng: 0.0000, latitude: 0, longitude: 0, speedKmh: 35.0, description: 'Entering highway on-ramp' },
+      { deltaLat: 0.0032, deltaLng: 0.0050, latitude: 0.0032, longitude: 0.0050, speedKmh: 68.0, description: 'Cruising at highway speed' },
+      { deltaLat: 0.0092, deltaLng: 0.0140, latitude: 0.0092, longitude: 0.0140, speedKmh: 74.5, description: 'Express expressway transit' },
+      { deltaLat: 0.0152, deltaLng: 0.0210, latitude: 0.0152, longitude: 0.0210, speedKmh: 52.0, description: 'Taking downtown exit ramp' },
+      { deltaLat: 0.0182, deltaLng: 0.0260, latitude: 0.0182, longitude: 0.0260, speedKmh: 22.0, description: 'Arriving at regional business park' },
     ],
   },
   {
-    id: 'visit_landlord',
-    name: '🏠 Visit Landlord (35 km/h to Dwell Stop)',
-    description: 'Vehicle trip to landlord office followed by stationary arrival to trigger Rent task alert.',
+    id: 'visit_errand',
+    name: '🏠 Short Vehicle Errand (35 km/h to Dwell Stop)',
+    description: 'Vehicle trip followed by stationary arrival to trigger geofence reminder.',
     expectedMode: 'vehicle',
     waypoints: [
-      { latitude: 40.7128, longitude: -74.006, speedKmh: 32.0, description: 'Driving south down avenue' },
-      { latitude: 40.711, longitude: -74.009, speedKmh: 24.0, description: 'Approaching property management district' },
-      { latitude: 40.7095, longitude: -74.0125, speedKmh: 0.0, description: 'Parked outside Landlord Office (Geofenced)' },
+      { deltaLat: 0.0000, deltaLng: 0.0000, latitude: 0, longitude: 0, speedKmh: 32.0, description: 'Driving down avenue' },
+      { deltaLat: 0.0018, deltaLng: 0.0030, latitude: 0.0018, longitude: 0.0030, speedKmh: 24.0, description: 'Approaching destination area' },
+      { deltaLat: 0.0033, deltaLng: 0.0065, latitude: 0.0033, longitude: 0.0065, speedKmh: 0.0, description: 'Parked outside destination (Geofenced)' },
     ],
   },
 ];

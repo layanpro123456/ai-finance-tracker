@@ -27,7 +27,6 @@ import { ProximityAlertBanner } from './components/ProximityAlertBanner';
 import {
   evaluateProximityAlerts,
   loadSavedPlaces,
-  DEFAULT_ANCHOR_COORDS,
 } from './services/locationMobilityService';
 import type { ProximityAlert } from './types';
 import { AdminPortal } from './components/AdminPortal';
@@ -283,20 +282,38 @@ export function App() {
         console.warn('Contacts ledger table unavailable:', e);
       }
 
-      // I. Personal ERP: Fetch Saved Places & Check Proximity Alerts (Device-Bound)
+      // I. Personal ERP: Fetch Saved Places & Check Proximity Alerts (Real Device GPS only)
       try {
         const loadedPlaces = await loadSavedPlaces(user.id, getDeviceId());
-        const alerts = evaluateProximityAlerts(
-          DEFAULT_ANCHOR_COORDS,
-          loadedPlaces,
-          dismissedAlertPlaces,
-          budgetData || [],
-          fetchedTasks || [],
-          fetchedLedger || []
-        );
-        setActiveAlerts(alerts);
+        if (loadedPlaces.length > 0 && typeof navigator !== 'undefined' && navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              const deviceCoords = {
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude,
+              };
+              const alerts = evaluateProximityAlerts(
+                deviceCoords,
+                loadedPlaces,
+                dismissedAlertPlaces,
+                budgetData || [],
+                fetchedTasks || [],
+                fetchedLedger || []
+              );
+              setActiveAlerts(alerts);
+            },
+            () => {
+              // Location permission denied or GPS inactive: do not trigger false alerts
+              setActiveAlerts([]);
+            },
+            { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+          );
+        } else {
+          setActiveAlerts([]);
+        }
       } catch (e) {
         console.warn('Saved places unavailable:', e);
+        setActiveAlerts([]);
       }
     } catch (err) {
       console.error('Error fetching ERP dashboard data:', err);

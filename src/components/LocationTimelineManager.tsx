@@ -24,7 +24,6 @@ import {
   loadDailyMobilityStats,
   updateDailyMobilityStats,
   SIMULATION_SCENARIOS,
-  DEFAULT_ANCHOR_COORDS,
 } from '../services/locationMobilityService';
 import { getCurrentDeviceInfo } from '../services/deviceSessionService';
 import { supabase } from '../supabaseClient';
@@ -89,17 +88,15 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
 
   // Telemetry & GPS State
   const [isTracking, setIsTracking] = useState(true);
-  const [trackingSource, setTrackingSource] = useState<'simulation' | 'real_gps'>('simulation');
+  const [trackingSource, setTrackingSource] = useState<'simulation' | 'real_gps'>('real_gps');
   const [manualModeLock, setManualModeLock] = useState<TransportMode | 'auto'>('auto');
-  const [currentCoords, setCurrentCoords] = useState<{ latitude: number; longitude: number }>(
-    DEFAULT_ANCHOR_COORDS
-  );
+  const [currentCoords, setCurrentCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [currentSpeedKmh, setCurrentSpeedKmh] = useState<number>(0);
   const [classifiedMode, setClassifiedMode] = useState<TransportMode>('stationary');
   const [isInTraffic, setIsInTraffic] = useState<boolean>(false);
-  const [statusMessage, setStatusMessage] = useState<string>('Ready');
+  const [statusMessage, setStatusMessage] = useState<string>('Connecting to real device GPS...');
 
-  // Simulation State
+  // Simulation State (Anchor dynamically centered around user device)
   const [selectedScenarioId, setSelectedScenarioId] = useState<string>(SIMULATION_SCENARIOS[0].id);
   const [isSimPlaying, setIsSimPlaying] = useState<boolean>(false);
   const [simWaypointIndex, setSimWaypointIndex] = useState<number>(0);
@@ -108,8 +105,8 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
   // Modals
   const [showAddPlaceModal, setShowAddPlaceModal] = useState<boolean>(false);
   const [newPlaceName, setNewPlaceName] = useState('');
-  const [newPlaceLat, setNewPlaceLat] = useState(DEFAULT_ANCHOR_COORDS.latitude);
-  const [newPlaceLng, setNewPlaceLng] = useState(DEFAULT_ANCHOR_COORDS.longitude);
+  const [newPlaceLat, setNewPlaceLat] = useState<number>(0);
+  const [newPlaceLng, setNewPlaceLng] = useState<number>(0);
   const [newPlaceRadius, setNewPlaceRadius] = useState(300);
   const [newPlaceReminderType, setNewPlaceReminderType] = useState<ReminderType>('budget');
   const [newPlaceMessage, setNewPlaceMessage] = useState('');
@@ -128,9 +125,10 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
   // Filter for timeline
   const [timelineFilter, setTimelineFilter] = useState<'all' | 'trip' | 'stay' | 'alert'>('all');
 
-  // Refs for tracking continuity
+  // Refs for tracking continuity & relative simulation anchor
   const classifierRef = useRef(new MobilityClassifier());
   const simTimerRef = useRef<number | null>(null);
+  const simAnchorCoords = useRef<{ latitude: number; longitude: number } | null>(null);
 
   // 1. Initial Load of Places & Events (Scoped to this Physical Device)
   const fetchInitialData = useCallback(async () => {
@@ -173,6 +171,31 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
       return;
     }
 
+    // Immediate initial lock
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const speedKmh = pos.coords.speed !== null && pos.coords.speed !== undefined
+          ? Math.max(0, pos.coords.speed * 3.6)
+          : 0;
+        const coords = {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        };
+        setCurrentCoords(coords);
+        simAnchorCoords.current = coords;
+        setCurrentSpeedKmh(speedKmh);
+
+        const evaluation = classifierRef.current.evaluate(speedKmh, manualModeLock);
+        setClassifiedMode(evaluation.mode);
+        setIsInTraffic(evaluation.inTraffic);
+        setStatusMessage(evaluation.statusLabel);
+      },
+      (err) => {
+        setStatusMessage(`GPS Notice: ${err.message}.`);
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 5000 }
+    );
+
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
         const speedKmh = pos.coords.speed !== null && pos.coords.speed !== undefined
@@ -183,6 +206,7 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
           longitude: pos.coords.longitude,
         };
         setCurrentCoords(coords);
+        simAnchorCoords.current = coords;
         setCurrentSpeedKmh(speedKmh);
 
         const evaluation = classifierRef.current.evaluate(speedKmh, manualModeLock);
@@ -203,7 +227,7 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
     return () => navigator.geolocation.clearWatch(watchId);
   }, [trackingSource, isTracking, manualModeLock]);
 
-  // 3. Simulated Route Stepper
+  // 3. Simulated Route Stepper (Relative to User Device Position)
   const activeScenario = useMemo(() => {
     return SIMULATION_SCENARIOS.find((s) => s.id === selectedScenarioId) || SIMULATION_SCENARIOS[0];
   }, [selectedScenarioId]);
@@ -216,7 +240,12 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
       const wp = activeScenario.waypoints[nextIdx];
       const speed = simSpeedOverride !== null ? simSpeedOverride : wp.speedKmh;
 
-      setCurrentCoords({ latitude: wp.latitude, longitude: wp.longitude });
+      const baseLat = simAnchorCoords.current?.latitude ?? places[0]?.latitude ?? 0;
+      const baseLng = simAnchorCoords.current?.longitude ?? places[0]?.longitude ?? 0;
+      const nextLat = Number((baseLat + (wp.deltaLat ?? 0)).toFixed(6));
+      const nextLng = Number((baseLng + (wp.deltaLng ?? 0)).toFixed(6));
+
+      setCurrentCoords({ latitude: nextLat, longitude: nextLng });
       setCurrentSpeedKmh(speed);
 
       const evaluation = classifierRef.current.evaluate(speed, manualModeLock);
@@ -226,7 +255,7 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
 
       return nextIdx;
     });
-  }, [activeScenario, simSpeedOverride, manualModeLock]);
+  }, [activeScenario, simSpeedOverride, manualModeLock, places]);
 
   useEffect(() => {
     if (trackingSource !== 'simulation' || !isTracking || !isSimPlaying) {
@@ -251,7 +280,12 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
     const sc = SIMULATION_SCENARIOS.find((s) => s.id === scenarioId);
     if (sc && sc.waypoints[0]) {
       const wp = sc.waypoints[0];
-      setCurrentCoords({ latitude: wp.latitude, longitude: wp.longitude });
+      const baseLat = simAnchorCoords.current?.latitude ?? places[0]?.latitude ?? 0;
+      const baseLng = simAnchorCoords.current?.longitude ?? places[0]?.longitude ?? 0;
+      const nextLat = Number((baseLat + (wp.deltaLat ?? 0)).toFixed(6));
+      const nextLng = Number((baseLng + (wp.deltaLng ?? 0)).toFixed(6));
+
+      setCurrentCoords({ latitude: nextLat, longitude: nextLng });
       setCurrentSpeedKmh(wp.speedKmh);
       const evalState = classifierRef.current.evaluate(wp.speedKmh, manualModeLock);
       setClassifiedMode(evalState.mode);
@@ -263,15 +297,17 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
   // 4. Proximity Radar Calculation for Saved Places
   const placesWithProximity = useMemo(() => {
     return places.map((place) => {
-      const distMeters = Math.round(
-        calculateDistanceMeters(
-          currentCoords.latitude,
-          currentCoords.longitude,
-          place.latitude,
-          place.longitude
-        )
-      );
-      const isInside = distMeters <= place.radius_meters;
+      const distMeters = currentCoords
+        ? Math.round(
+            calculateDistanceMeters(
+              currentCoords.latitude,
+              currentCoords.longitude,
+              place.latitude,
+              place.longitude
+            )
+          )
+        : null;
+      const isInside = distMeters !== null && distMeters <= place.radius_meters;
       return {
         ...place,
         distanceMeters: distMeters,
@@ -666,8 +702,14 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
               <span>Spatial Coordinates</span>
             </div>
             <div className="text-xs font-mono text-slate-200 truncate pt-1">
-              Lat: <span className="text-white">{currentCoords.latitude.toFixed(4)}</span>, Lng:{' '}
-              <span className="text-white">{currentCoords.longitude.toFixed(4)}</span>
+              {currentCoords ? (
+                <>
+                  Lat: <span className="text-white">{currentCoords.latitude.toFixed(4)}</span>, Lng:{' '}
+                  <span className="text-white">{currentCoords.longitude.toFixed(4)}</span>
+                </>
+              ) : (
+                <span className="text-amber-400 font-medium">Acquiring Device GPS...</span>
+              )}
             </div>
             <div className="text-[10px] text-slate-400 truncate">{statusMessage}</div>
           </div>
@@ -960,8 +1002,19 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
           </div>
           <button
             onClick={() => {
-              setNewPlaceLat(currentCoords.latitude);
-              setNewPlaceLng(currentCoords.longitude);
+              if (currentCoords) {
+                setNewPlaceLat(currentCoords.latitude);
+                setNewPlaceLng(currentCoords.longitude);
+              } else if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                  (pos) => {
+                    setNewPlaceLat(Number(pos.coords.latitude.toFixed(6)));
+                    setNewPlaceLng(Number(pos.coords.longitude.toFixed(6)));
+                  },
+                  () => {},
+                  { timeout: 3000 }
+                );
+              }
               setShowAddPlaceModal(true);
             }}
             className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer self-start sm:self-auto shadow-sm"
@@ -1007,9 +1060,13 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                             Inside Geofence ({place.distanceMeters}m)
                           </span>
-                        ) : (
+                        ) : place.distanceMeters !== null ? (
                           <span className="text-[10px] font-mono text-slate-400">
                             {place.distanceMeters}m away
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-mono text-slate-500">
+                            Awaiting GPS
                           </span>
                         )}
                       </div>
@@ -1193,32 +1250,65 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
-                    Latitude
-                  </label>
-                  <input
-                    type="number"
-                    step="0.0001"
-                    required
-                    value={newPlaceLat}
-                    onChange={(e) => setNewPlaceLat(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
-                  />
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Geographic Coordinates *
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (currentCoords) {
+                        setNewPlaceLat(Number(currentCoords.latitude.toFixed(6)));
+                        setNewPlaceLng(Number(currentCoords.longitude.toFixed(6)));
+                      } else if (typeof navigator !== 'undefined' && navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(
+                          (pos) => {
+                            setNewPlaceLat(Number(pos.coords.latitude.toFixed(6)));
+                            setNewPlaceLng(Number(pos.coords.longitude.toFixed(6)));
+                          },
+                          (err) => {
+                            alert(`Could not acquire GPS: ${err.message}`);
+                          },
+                          { enableHighAccuracy: true, timeout: 8000 }
+                        );
+                      }
+                    }}
+                    className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Navigation className="w-3 h-3" />
+                    <span>Use Current Device GPS</span>
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
-                    Longitude
-                  </label>
-                  <input
-                    type="number"
-                    step="0.0001"
-                    required
-                    value={newPlaceLng}
-                    onChange={(e) => setNewPlaceLng(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] text-slate-400 mb-1">
+                      Latitude
+                    </label>
+                    <input
+                      type="number"
+                      step="0.000001"
+                      required
+                      placeholder="e.g. 6.9271"
+                      value={newPlaceLat}
+                      onChange={(e) => setNewPlaceLat(parseFloat(e.target.value) || 0)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-slate-400 mb-1">
+                      Longitude
+                    </label>
+                    <input
+                      type="number"
+                      step="0.000001"
+                      required
+                      placeholder="e.g. 79.8612"
+                      value={newPlaceLng}
+                      onChange={(e) => setNewPlaceLng(parseFloat(e.target.value) || 0)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                    />
+                  </div>
                 </div>
               </div>
 

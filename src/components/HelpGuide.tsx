@@ -30,6 +30,7 @@ import {
   Camera,
   HeartPulse,
   RotateCcw,
+  Database,
 } from 'lucide-react';
 
 interface HelpGuideProps {
