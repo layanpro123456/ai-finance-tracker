@@ -116,15 +116,37 @@ Traditional personal finance apps only track what you spent *after* you've alrea
 ### 12. 🧭 Two-Row Enterprise Navigation & Responsive Touch Engineering
 * **Two-Row Decoupled Architecture**:
   * **Row 1 (Header Control Bar)**: Contains the unconstrained brand identity (`shrink-0` to eliminate text truncation or logo overlap), Live Platform Status indicator, Quick Currency Switcher, Dark/Light Theme toggle, Device Session status, User Identity pill, Mobile Drawer Toggle, and Logout.
-  * **Row 2 (Module Ribbon)**: Dedicated, full-width secondary navigation ribbon for the 10 core operational tabs (`Overview`, `Daily Tasks`, `Timeline & Mobility`, `Ledger`, `Accounts`, `Budgets`, `Assets`, `Subscriptions`, `Social IOU`, `Help & Guide`).
+  * **Row 2 (Module Ribbon)**: Dedicated, full-width secondary navigation ribbon for all core operational tabs (`Overview`, `Daily Tasks`, `Timeline & Mobility`, `Cash & ATM`, `Ledger`, `Accounts`, `Budgets`, `Assets`, `Subscriptions`, `Social IOU`, `Help & Guide`).
 * **Active Tab Auto-Centering**: Smooth automatic scroll centering keeps your active module centered when switching views or resizing.
 * **Gradient Edge Fade Masks**: Dynamic left and right fade masks indicate scrollability without displaying bulky scrollbars.
 * **Slide-Over Touch Drawer**: On mobile screens (`< 768px`), a slide-over mobile drawer presents vertical module navigation with badge indicators, full touch targets, and instant module jumping.
-* **Soft-Keyboard Overflow Defense**: All 10 modals implement `max-h-[90vh] overflow-y-auto` to prevent buttons from being clipped by virtual keyboards on iOS and Android.
+* **Soft-Keyboard Overflow Defense**: All modals implement `max-h-[90vh] overflow-y-auto` to prevent buttons from being clipped by virtual keyboards on iOS and Android.
 
 ### 13. ☁️ Cloud-First Direct Supabase Synchronization
 * All saved places, mobility timeline events, daily statistics, tasks, and streaks are persisted directly in Supabase PostgreSQL tables.
 * Stale `localStorage` caching has been eliminated in favor of real-time database queries, ensuring consistent state across reloads and multi-device session migrations.
+
+### 14. 💵 In-Hand Cash & ATM Vault
+* **Physical Wallet Tracking**: Dedicated cash balance sheet itemizing physical bills in hand versus liquid digital bank accounts.
+* **1-Click ATM Cash Withdrawal**: Automatically transfers funds from checking to physical cash without double-counting expenses, with optional ATM operator surcharge logging.
+* **Cash Spend & Deposit Logging**: Fast logger for cash transactions and 1-click cash deposits back into checking.
+* **Physical Wallet Count & Denomination Audit**: Bill counter utility with 1-click auto-reconciliation of physical cash discrepancies.
+
+### 15. 📈 Predictive 30/60/90-Day Cash Flow & Stress Sandbox
+* **Dynamic Cash Projection**: Day-by-day cash balance trajectory combining historical burn rate, active recurring subscriptions, and pending bill tasks.
+* **What-If Stress Testing Sandbox**: Interactive burn rate multiplier slider and simulated sudden capital expense tester.
+* **Overdraft Radar & Liquid Runway**: Real-time runway countdown alerts users to projected cash deficits before they occur.
+
+### 16. 🧾 Group Bill Splitter & Payment Links
+* **Frictionless Bill Splitting**: Split bills equally, by exact custom amount, or by percentage.
+* **Instant Payment Links**: Generates direct deep links (UPI, Venmo, PayPal, CashApp) and Web Share API / WhatsApp formatted text.
+* **1-Click Social Ledger Sync**: Seamlessly logs individual shares into the peer-to-peer `contacts_ledger` without requiring companions to download the app.
+
+### 17. 🚗 Commute Mileage Tax Deduction & Reimbursement Engine
+* **Business vs. Personal Classification**: Categorize mobility transit legs with single-click ease.
+* **Standard Mileage Write-Offs**: Automatically calculates allowable tax write-offs using configurable rates (IRS \$0.67/mi, CRA \$0.70/km, HMRC £0.45/mi).
+* **Strict Public Transit Exemption**: Public transport (trains, buses, subways, ferries) is strictly excluded from vehicle mileage formulas to ensure tax compliance.
+* **Exportable Reports**: Generate itemized CSV files and printable, audit-ready reimbursement forms.
 
 ---
 
@@ -192,14 +214,18 @@ ai-finance-tracker/
 │   │   ├── AssetManager.tsx             # Asset inventory, warranty vault & reset
 │   │   ├── AuthModal.tsx                # Single-device session login & registration
 │   │   ├── BudgetManager.tsx            # Category limits, progress & reset
+│   │   ├── CashManager.tsx              # In-hand cash wallet, ATM withdrawals & bill audit
 │   │   ├── ContactsLedgerManager.tsx    # Peer-to-peer IOU tracker & reset
 │   │   ├── CurrencyLogo.tsx             # Dynamic multi-currency badge & prefix
 │   │   ├── HelpGuide.tsx                # User-facing step-by-step documentation
 │   │   ├── LocationTimelineManager.tsx  # Telemetry, commute stats, simulator & reset
 │   │   ├── MetricCards.tsx              # Executive Net Worth & burn rate cards
+│   │   ├── MileageTaxReportModal.tsx    # Mileage tax write-off audit & printable report
 │   │   ├── Navbar.tsx                   # Two-Row Navigation bar with module ribbon & mobile drawer
+│   │   ├── PredictiveCashFlow.tsx       # 30/60/90-day cash projection & What-If stress sandbox
 │   │   ├── ProximityAlertBanner.tsx     # Global geofence payment alert banner
 │   │   ├── SettingsModal.tsx            # Theme, currency, timezone modal & discrete admin entry
+│   │   ├── SplitBillModal.tsx           # Group bill splitter with UPI/Venmo/PayPal deep links
 │   │   ├── SubscriptionManager.tsx      # Recurring billing, cancellation links & reset
 │   │   ├── TaskManager.tsx              # Operations, financial task bridge & reset
 │   │   └── TransactionList.tsx          # Filterable ledger transactions & reset
@@ -253,6 +279,17 @@ To access the administrative portal when logged in as `layanmoyura@proton.me`:
 * Press `Ctrl + Shift + A` (or `Cmd + Shift + A` on macOS)
 * Or append `#admin` to your browser URL
 * Or open **System Settings** (gear icon) and click **Admin Portal**
+
+---
+
+## 📝 Continuous Documentation Synchronization Invariant
+
+> [!IMPORTANT]
+> **Mandatory Post-Commit Markdown Update Rule:**
+> Every commit or feature implementation **must** update the corresponding Markdown documentation (`README.md`, `project_readme.md`, `contributing_guidelines.md`, `database_schema.md`, `setup_guide.md`) in lockstep within that exact same commit.
+> - Any newly created component or service must be cataloged in the project file tree and module documentation.
+> - Any schema, invariant, or workflow changes must be documented immediately.
+> - Code and documentation must never drift apart.
 
 ---
 
