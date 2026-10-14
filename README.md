@@ -41,6 +41,11 @@ Traditional personal finance apps only track what you spent *after* you've alrea
 * Powered by Google Gemini 2.0 / 2.5 Flash with multi-currency parsing.
 * Type or paste natural language purchases:
   > *"Spent Rs 4,500 on groceries at Keells"* or *"Paid €65 for train ticket yesterday"*
+* **🛡️ Defense-in-Depth Prompt Injection Protection**:
+  * **Adversarial Pattern Scanning**: Pre-execution regex detection halts jailbreaks, instruction overrides (`"ignore previous instructions"`), persona hijacking (`"you are now DAN"`), and system prompt / API secret exfiltration.
+  * **First-Class System Instruction Isolation**: System prompt is passed via Gemini's dedicated `systemInstruction` field, isolating untrusted user input wrapped within inert `<untrusted_user_note>` delimiters.
+  * **Zero-Trust Post-Execution Schema Validation**: Output is validated against strict numerical caps ($100,000,000), canonical 10-category taxonomy, and HTML/script tag stripping.
+  * **Client-Side Real-Time Prompt Guard**: Real-time input monitoring alerts users with a security badge and disables execution if adversarial keywords are detected.
 * **🎙️ Real-Time Voice Typing (Speech-to-Text)**:
   * Hands-free dictation powered by the browser Web Speech API with live audio waveform pulses and real-time interim transcript streaming.
   * **17+ Spoken Languages**: Dictate in English (US/UK/IN/AU/CA), Spanish, French, German, Italian, Portuguese, Hindi, Japanese, Mandarin, Sinhala, Tamil, Arabic, and more with instant language switching and browser auto-detection.
@@ -190,6 +195,10 @@ To solve mobile browser background tab throttling and Doze mode process freezing
 * **Native Foreground Service**: Runs an ongoing status bar notification (`FOREGROUND_SERVICE_LOCATION`), preventing Android from terminating telemetry acquisition.
 * **Offline SQLite Queue**: Embedded **Room** database ensures zero lost points during cellular dead-zones or tunnels, auto-flushing to Supabase upon reconnection.
 * **Direct Supabase Sync**: Streams live telemetry directly into `device_location_pings` and broadcasts via Supabase Realtime to the web dashboard.
+* **🔒 Zero-Exposure Mobile Pairing**:
+  * **Masked Display**: Project URLs and API keys are masked by default (`••••••••••••`), protecting against screen recording and shoulder surfing.
+  * **Visual QR Code & 1-Tap Token**: Point your phone camera at the screen or paste the single-string opaque pairing token (`apex_pair_v1_...`). No manual typing or plain text keys exposed.
+  * **Android Keystore AES-256 Storage**: The companion APK encrypts all connection credentials using hardware-backed `EncryptedSharedPreferences`.
 * **Automated Cloud Builds**: GitHub Actions workflow (`.github/workflows/build-tracker-apk.yml`) compiles the debug APK automatically on push or workflow dispatch.
 
 ---
@@ -214,7 +223,7 @@ ai-finance-tracker/
 │   │   ├── AccountManager.tsx           # Multi-account balance sheets & reset (starts at 0.00)
 │   │   ├── AdminAuthModal.tsx           # Strict admin authorization modal (layanmoyura@proton.me)
 │   │   ├── AdminPortal.tsx              # Platform user telemetry, audit logs & 1-click DB purge
-│   │   ├── AiTransactionInput.tsx       # Natural language expense logger with Gemini Flash
+│   │   ├── AiTransactionInput.tsx       # Natural language expense logger with Gemini Flash & Prompt Guard
 │   │   ├── AssetManager.tsx             # Asset inventory, warranty vault & reset
 │   │   ├── AuthModal.tsx                # Single-device session login & registration
 │   │   ├── BudgetManager.tsx            # Category limits, progress & reset
@@ -222,7 +231,7 @@ ai-finance-tracker/
 │   │   ├── ContactsLedgerManager.tsx    # Peer-to-peer IOU tracker & reset
 │   │   ├── CurrencyLogo.tsx             # Dynamic multi-currency badge & prefix
 │   │   ├── HelpGuide.tsx                # User-facing step-by-step documentation
-│   │   ├── LocationTimelineManager.tsx  # Telemetry, commute stats, simulator & reset
+│   │   ├── LocationTimelineManager.tsx  # Telemetry, commute stats, simulator & masked pairing
 │   │   ├── MetricCards.tsx              # Executive Net Worth & burn rate cards
 │   │   ├── Navbar.tsx                   # Two-Row Navigation bar with module ribbon & mobile drawer
 │   │   ├── PredictiveCashFlow.tsx       # 30/60/90-day cash projection & What-If stress sandbox
@@ -238,13 +247,15 @@ ai-finance-tracker/
 │   │   └── useSpeechRecognition.ts      # Web Speech API voice typing & multi-language dictation
 │   ├── services/
 │   │   ├── adminTelemetry.ts           # Privacy-first audit logging & admin email verification
+│   │   ├── aiSecurityGuard.ts          # Prompt injection scanner, adversarial pattern detector & schema validator
 │   │   ├── databaseAdminService.ts     # 1-Click database purge & clean 0.00 balance reset
 │   │   ├── deviceSessionService.ts     # Single-device session lock & hardware UUID
-│   │   └── locationMobilityService.ts   # Haversine math, traffic classifier, simulator
+│   │   ├── locationMobilityService.ts   # Haversine math, traffic classifier, simulator
+│   │   └── mobilePairingService.ts     # Zero-exposure mobile pairing token, visual QR code & secret masking
 │   ├── types/
 │   │   └── index.ts                     # Core TypeScript schemas
 │   ├── App.tsx                          # Root coordinator & global shortcut handler (Ctrl+Shift+A)
-│   └── supabaseClient.ts               # Authenticated Supabase client instance
+│   └── supabaseClient.ts               # Authenticated Supabase client instance with AI guard
 ├── database_schema.md                   # Complete PostgreSQL DDL, RLS policies & indexes
 ├── setup_guide.md                       # Installation, environment setup & deployment guide
 ├── contributing_guidelines.md           # Development workflow, linting & security guidelines

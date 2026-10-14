@@ -50,6 +50,8 @@ export interface ParsedTransactionData {
   raw_prompt: string;
 }
 
+export type ParsedTransaction = ParsedTransactionData;
+
 export type TaskStatus = 'todo' | 'in_progress' | 'completed' | 'cancelled';
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 export type FinancialTaskType = 'payable' | 'receivable' | 'budget_task' | 'none';

@@ -15,8 +15,11 @@ import {
   AudioLines,
   Languages,
   Globe,
+  ShieldAlert,
+  ShieldCheck,
 } from 'lucide-react';
 import { useSpeechRecognition, SUPPORTED_VOICE_LANGUAGES } from '../hooks/useSpeechRecognition';
+import { containsAdversarialPatterns, MAX_PROMPT_LENGTH } from '../services/aiSecurityGuard';
 
 interface AiTransactionInputProps {
   userId: string;
@@ -62,10 +65,18 @@ export const AiTransactionInput: React.FC<AiTransactionInputProps> = ({
     `Paid ${preferences.currencySymbol}65 for car maintenance`,
   ];
 
+  // Prompt Injection & Adversarial Pattern Scanner
+  const isAdversarial = useMemo(() => containsAdversarialPatterns(prompt), [prompt]);
+
   const handleParse = useCallback(
     async (inputPrompt?: string) => {
       const textToParse = inputPrompt || prompt;
       if (!textToParse.trim()) return;
+
+      if (containsAdversarialPatterns(textToParse)) {
+        setError('Adversarial prompt injection pattern detected. Prompts are restricted to personal financial expense entries only.');
+        return;
+      }
 
       setIsParsing(true);
       setError(null);
@@ -266,6 +277,10 @@ export const AiTransactionInput: React.FC<AiTransactionInputProps> = ({
                   Text Mode
                 </span>
               )}
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                <ShieldCheck className="w-2.5 h-2.5" />
+                Prompt Guard
+              </span>
             </div>
             <p className="text-xs text-slate-400">
               Speak or type: &ldquo;Spent {preferences.currencySymbol}14.50 on lunch at Chipotle today&rdquo;
@@ -339,16 +354,19 @@ export const AiTransactionInput: React.FC<AiTransactionInputProps> = ({
         <div className="relative flex-1 flex items-center">
           <input
             type="text"
+            maxLength={MAX_PROMPT_LENGTH}
             value={isListening && interimTranscript ? `${prompt} ${interimTranscript}`.trim() : prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleParse()}
+            onKeyDown={(e) => e.key === 'Enter' && !isAdversarial && handleParse()}
             placeholder={
               isListening
                 ? `🎙️ Listening in ${activeLangObj.label}... Speak clearly now`
                 : `e.g. Paid ${preferences.currencySymbol}65 for groceries or Spent ${preferences.currencySymbol}14.50 on lunch...`
             }
             className={`w-full bg-slate-950 border rounded-xl pl-4 pr-24 py-3 text-sm text-white placeholder-slate-500 focus:outline-none transition ${
-              isListening
+              isAdversarial
+                ? 'border-rose-500/80 ring-2 ring-rose-500/30 text-rose-200'
+                : isListening
                 ? 'border-rose-500/70 ring-2 ring-rose-500/30'
                 : 'border-slate-800 focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500'
             }`}
@@ -403,7 +421,7 @@ export const AiTransactionInput: React.FC<AiTransactionInputProps> = ({
 
         <button
           onClick={() => handleParse()}
-          disabled={isParsing || !prompt.trim()}
+          disabled={isParsing || !prompt.trim() || isAdversarial}
           className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-semibold px-5 py-3 rounded-xl shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer text-sm flex-shrink-0"
         >
           {isParsing ? (
@@ -419,6 +437,16 @@ export const AiTransactionInput: React.FC<AiTransactionInputProps> = ({
           )}
         </button>
       </div>
+
+      {/* Adversarial Prompt Injection Warning Banner */}
+      {isAdversarial && (
+        <div className="mt-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2.5 animate-in fade-in duration-150">
+          <ShieldAlert className="w-4 h-4 text-rose-400 shrink-0" />
+          <span>
+            <strong>Prompt Guard Active:</strong> Potential adversarial instruction or rule-override detected. AI parsing is restricted to personal financial expense entries only.
+          </span>
+        </div>
+      )}
 
       {/* Live Audio Waves and Interim Transcript Banner */}
       {isListening && (

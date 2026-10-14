@@ -2,9 +2,14 @@ package com.apex.locationtracker.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.net.Uri
 import android.os.Build
+import android.util.Base64
 import android.util.Log
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import com.google.gson.Gson
+import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -16,8 +21,22 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 class SupabaseManager(private val context: Context) {
-    private val prefs: SharedPreferences =
+    // Hardware-backed AES-256 encrypted storage so credentials are never stored in plaintext
+    private val prefs: SharedPreferences = try {
+        val masterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        EncryptedSharedPreferences.create(
+            context,
+            "apex_tracker_encrypted_prefs",
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    } catch (e: Exception) {
+        Log.w(TAG, "EncryptedSharedPreferences unavailable, falling back to standard: ${e.message}")
         context.getSharedPreferences("apex_tracker_prefs", Context.MODE_PRIVATE)
+    }
 
     private val gson = Gson()
     private val client = OkHttpClient.Builder()
@@ -36,6 +55,7 @@ class SupabaseManager(private val context: Context) {
         private const val KEY_USER_ID = "supabase_user_id"
         private const val KEY_DEVICE_ID = "apex_device_id"
         private const val KEY_DEVICE_NAME = "apex_device_name"
+        const val TOKEN_PREFIX = "apex_pair_v1_"
     }
 
     var supabaseUrl: String
@@ -74,6 +94,82 @@ class SupabaseManager(private val context: Context) {
             }
             return name
         }
+
+    /**
+     * Imports an opaque single-string pairing token (e.g. apex_pair_v1_...)
+     * Eliminates the need to ever view or type raw URLs and API keys on mobile.
+     */
+    fun importPairingToken(token: String): Boolean {
+        try {
+            val trimmed = token.trim()
+            val base64Payload = if (trimmed.startsWith(TOKEN_PREFIX)) {
+                trimmed.removePrefix(TOKEN_PREFIX)
+            } else {
+                trimmed
+            }
+            val decodedBytes = Base64.decode(
+                base64Payload,
+                Base64.URL_SAFE or Base64.NO_WRAP or Base64.DEFAULT
+            )
+            val jsonString = String(decodedBytes, Charsets.UTF_8)
+            val jsonObj = JsonParser.parseString(jsonString).asJsonObject
+
+            val url = jsonObj.get("u")?.asString ?: return false
+            val key = jsonObj.get("k")?.asString ?: return false
+            val uid = jsonObj.get("uid")?.asString ?: return false
+
+            if (url.isNotBlank() && key.isNotBlank() && uid.isNotBlank()) {
+                supabaseUrl = url
+                anonKey = key
+                userId = uid
+                return true
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to decode pairing token: ${e.message}")
+        }
+        return false
+    }
+
+    /**
+     * Safely returns masked project URL for UI rendering
+     */
+    fun getMaskedUrl(): String {
+        val url = supabaseUrl
+        if (url.isBlank()) return "Not Configured"
+        return try {
+            val uri = Uri.parse(url)
+            val host = uri.host ?: url
+            val parts = host.split(".")
+            if (parts.size >= 3) {
+                val prefix = parts[0].take(4)
+                "${uri.scheme}://${prefix}••••.${parts.drop(1).joinToString(".")}"
+            } else {
+                "${uri.scheme}://••••••••"
+            }
+        } catch (e: Exception) {
+            "https://••••••••.supabase.co"
+        }
+    }
+
+    /**
+     * Safely returns masked anon key for UI rendering
+     */
+    fun getMaskedKey(): String {
+        val key = anonKey
+        if (key.isBlank()) return "Not Configured"
+        if (key.length <= 12) return "••••••••••••"
+        return "${key.take(6)}••••••••••••••••••••${key.takeLast(4)}"
+    }
+
+    /**
+     * Safely returns masked user ID for UI rendering
+     */
+    fun getMaskedUserId(): String {
+        val id = userId
+        if (id.isBlank()) return "Not Configured"
+        if (id.length <= 8) return "••••••••"
+        return "${id.take(4)}••••-••••-••••-••••••••${id.takeLast(4)}"
+    }
 
     /**
      * Sends a single ping to Supabase.

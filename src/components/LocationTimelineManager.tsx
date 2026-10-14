@@ -63,7 +63,18 @@ import {
   Copy,
   Check,
   QrCode,
+  Eye,
+  EyeOff,
+  Lock,
+  Shield,
 } from 'lucide-react';
+import {
+  generatePairingToken,
+  generatePairingQrDataUrl,
+  maskSupabaseUrl,
+  maskSecretKey,
+  maskUuid,
+} from '../services/mobilePairingService';
 
 interface LocationTimelineManagerProps {
   userId: string;
@@ -102,6 +113,22 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
   const [latestPhonePing, setLatestPhonePing] = useState<DeviceLocationPing | null>(null);
   const [showPairPhoneModal, setShowPairPhoneModal] = useState(false);
   const [copiedCredentials, setCopiedCredentials] = useState(false);
+  const [revealCredentials, setRevealCredentials] = useState(false);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
+  const [copiedToken, setCopiedToken] = useState(false);
+
+  const pairingToken = useMemo(
+    () => generatePairingToken(supabaseUrl, supabaseAnonKey, userId),
+    [userId]
+  );
+
+  useEffect(() => {
+    if (showPairPhoneModal && pairingToken) {
+      generatePairingQrDataUrl(pairingToken)
+        .then(setQrCodeDataUrl)
+        .catch((err) => console.warn('QR code generation failed:', err));
+    }
+  }, [showPairPhoneModal, pairingToken]);
   const [manualModeLock, setManualModeLock] = useState<TransportMode | 'auto'>('auto');
   const [currentCoords, setCurrentCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [currentSpeedKmh, setCurrentSpeedKmh] = useState<number>(0);
@@ -1724,8 +1751,13 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
                   <Smartphone className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">Pair Android Tracker APK</h3>
-                  <p className="text-xs text-slate-400">Continuous background GPS telemetry for Apex LifeOS</p>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <span>Pair Android Tracker APK</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5" /> Zero-Exposure
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400">Encrypted background GPS pairing with no plain text credentials</p>
                 </div>
               </div>
               <button
@@ -1736,128 +1768,172 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
               </button>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-purple-950/30 border border-purple-500/20 text-xs text-purple-200 leading-relaxed">
-              <span className="font-semibold text-purple-300">Why use the companion APK? </span>
-              Mobile browsers aggressively suspend background JavaScript when you lock the phone or put it in your pocket. The companion APK runs as an Android <strong>Foreground Service</strong>, ensuring uninterrupted transit classification and geofence detection.
+            {/* Quick 1-Scan QR Code Section */}
+            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-center space-y-3">
+              <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-purple-300">
+                <QrCode className="w-4 h-4 text-purple-400" />
+                <span>Scan with Camera or Apex Tracker APK</span>
+              </div>
+
+              <div className="flex justify-center py-1">
+                {qrCodeDataUrl ? (
+                  <div className="p-2 bg-slate-950 rounded-2xl border-2 border-purple-500/30 shadow-xl shadow-purple-500/10 inline-block">
+                    <img
+                      src={qrCodeDataUrl}
+                      alt="Companion Pairing QR Code"
+                      className="w-44 h-44 rounded-xl"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-44 h-44 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center">
+                    <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
+                  </div>
+                )}
+              </div>
+
+              {/* 1-Click Secure Pairing Token Button */}
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(pairingToken);
+                  setCopiedToken(true);
+                  setTimeout(() => setCopiedToken(false), 2500);
+                }}
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 transition cursor-pointer"
+              >
+                {copiedToken ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-300" />
+                    <span className="text-emerald-300">Copied Secure Pairing Token!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    <span>Copy Encrypted Pairing Token (1-Tap Sideload)</span>
+                  </>
+                )}
+              </button>
+              <p className="text-[11px] text-slate-500">
+                Contains an obfuscated connection envelope. Never exposes raw database credentials or URLs.
+              </p>
             </div>
 
-            {/* Credentials Section */}
-            <div className="space-y-3">
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                  Supabase Project URL
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    readOnly
-                    value={supabaseUrl || 'https://your-project.supabase.co'}
-                    className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-emerald-400 select-all"
-                  />
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(supabaseUrl);
-                      setCopiedCredentials(true);
-                      setTimeout(() => setCopiedCredentials(false), 2000);
-                    }}
-                    className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs flex items-center gap-1 cursor-pointer"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>Copy</span>
-                  </button>
+            {/* Zero-Exposure Parameter Inspection Section */}
+            <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+                  <Shield className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Connection Parameters</span>
+                  {copiedCredentials && <span className="text-[10px] text-emerald-400 font-normal">Copied!</span>}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRevealCredentials(!revealCredentials)}
+                  className="text-slate-400 hover:text-slate-200 text-xs flex items-center gap-1 cursor-pointer"
+                >
+                  {revealCredentials ? (
+                    <>
+                      <EyeOff className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Mask Values</span>
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-emerald-400">Reveal Plaintext</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="space-y-2 text-xs">
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-0.5">
+                    Supabase Project Endpoint
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={revealCredentials ? (supabaseUrl || 'https://your-project.supabase.co') : maskSupabaseUrl(supabaseUrl)}
+                      className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 font-mono text-emerald-400 text-[11px] select-all"
+                    />
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(supabaseUrl);
+                        setCopiedCredentials(true);
+                        setTimeout(() => setCopiedCredentials(false), 2000);
+                      }}
+                      className="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] flex items-center gap-1 cursor-pointer"
+                      title="Copy endpoint"
+                    >
+                      <Copy className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-0.5">
+                    Anon Public Key (Restricted to Telemetry Inserts)
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={revealCredentials ? (supabaseAnonKey || 'your-anon-key') : maskSecretKey(supabaseAnonKey)}
+                      className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 font-mono text-slate-300 text-[11px] select-all"
+                    />
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(supabaseAnonKey);
+                        setCopiedCredentials(true);
+                        setTimeout(() => setCopiedCredentials(false), 2000);
+                      }}
+                      className="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] flex items-center gap-1 cursor-pointer"
+                      title="Copy anon key"
+                    >
+                      <Copy className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-0.5">
+                    User Auth UUID (Isolated Multi-Tenant Partition)
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={revealCredentials ? (userId || '') : maskUuid(userId)}
+                      className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 font-mono text-cyan-400 text-[11px] select-all"
+                    />
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(userId);
+                        setCopiedCredentials(true);
+                        setTimeout(() => setCopiedCredentials(false), 2000);
+                      }}
+                      className="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] flex items-center gap-1 cursor-pointer"
+                      title="Copy user ID"
+                    >
+                      <Copy className="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                  Anon Public Key
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    readOnly
-                    value={supabaseAnonKey || 'your-anon-key'}
-                    className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-300 truncate select-all"
-                  />
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(supabaseAnonKey);
-                      setCopiedCredentials(true);
-                      setTimeout(() => setCopiedCredentials(false), 2000);
-                    }}
-                    className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs flex items-center gap-1 cursor-pointer"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>Copy</span>
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                  User Auth UUID (auth.users)
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    readOnly
-                    value={userId || ''}
-                    className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-cyan-400 select-all"
-                  />
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(userId);
-                      setCopiedCredentials(true);
-                      setTimeout(() => setCopiedCredentials(false), 2000);
-                    }}
-                    className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs flex items-center gap-1 cursor-pointer"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>Copy</span>
-                  </button>
-                </div>
+              <div className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span>Zero-exposure active. Screen recorders and viewers cannot read masked values.</span>
               </div>
             </div>
-
-            {/* Quick Copy All Button */}
-            <button
-              onClick={() => {
-                const configPayload = JSON.stringify(
-                  {
-                    supabase_url: supabaseUrl,
-                    supabase_anon_key: supabaseAnonKey,
-                    user_id: userId,
-                  },
-                  null,
-                  2
-                );
-                navigator.clipboard.writeText(configPayload);
-                setCopiedCredentials(true);
-                setTimeout(() => setCopiedCredentials(false), 2000);
-              }}
-              className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer"
-            >
-              {copiedCredentials ? (
-                <>
-                  <Check className="w-4 h-4 text-emerald-400" />
-                  <span className="text-emerald-400">Copied All Pairing Config to Clipboard!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-4 h-4 text-purple-400" />
-                  <span>Copy Full Configuration JSON</span>
-                </>
-              )}
-            </button>
 
             {/* Step-by-Step Instructions */}
             <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/80 space-y-2 text-xs text-slate-300">
-              <span className="font-bold text-white block">Installation Steps:</span>
-              <ol className="list-decimal list-inside space-y-1 text-slate-400">
-                <li>Install the <strong>Apex Location Tracker</strong> APK on your Android device (source in <code className="text-emerald-400 font-mono">android-companion/</code>).</li>
-                <li>Grant location permissions (<strong>Allow all the time</strong>) and disable battery optimizations.</li>
-                <li>Tap <strong>Settings (⚙️)</strong> in the app, paste the credentials above, and tap <strong>Save &amp; Connect</strong>.</li>
-                <li>Tap <strong>START BACKGROUND TRACKING</strong>. Your phone in your pocket will continuously stream telemetry to this screen!</li>
+              <span className="font-bold text-white block">Fast Pairing Workflow:</span>
+              <ol className="list-decimal list-inside space-y-1 text-slate-400 text-[11px]">
+                <li>Install the <strong>Apex Location Tracker</strong> APK on your phone.</li>
+                <li>Tap <strong>Settings (⚙️)</strong> in the app and tap <strong>&ldquo;Import &amp; Connect&rdquo;</strong> with the token copied above (or scan QR).</li>
+                <li>Tap <strong>START BACKGROUND TRACKING</strong>. Telemetry begins streaming live to your dashboard without browser sleep!</li>
               </ol>
             </div>
 

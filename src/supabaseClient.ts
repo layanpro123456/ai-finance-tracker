@@ -12,6 +12,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
+import {
+  validateAndSanitizePrompt,
+  validateAndSanitizeParsedTransaction,
+} from './services/aiSecurityGuard';
+
 export interface ParsedTransaction {
   amount: number;
   type: 'income' | 'expense';
@@ -60,30 +65,42 @@ function parseLocally(prompt: string): ParsedTransaction {
   let description = prompt
     .replace(/(?:[$€£₹]|(?:rs\.?|lkr)\s*)?\s*[0-9]+(?:\.[0-9]{1,2})?/gi, '')
     .replace(/\b(spent|spent on|paid|paid for|bought|earned|on|at|today|yesterday|with|card|cash)\b/gi, '')
+    .replace(/<[^>]*>/g, '')
     .trim();
 
   if (!description) {
     description = category;
   }
 
-  return {
-    amount,
-    type,
-    category,
-    description: description.charAt(0).toUpperCase() + description.slice(1),
-    transaction_date: today,
-    raw_prompt: prompt,
-  };
+  return validateAndSanitizeParsedTransaction(
+    {
+      amount,
+      type,
+      category,
+      description,
+      transaction_date: today,
+      raw_prompt: prompt,
+    },
+    prompt
+  );
 }
 
 export async function parseTransaction(prompt: string): Promise<ParsedTransaction> {
+  // Step 1: Client-side prompt sanitization and adversarial check
+  const validation = validateAndSanitizePrompt(prompt);
+  if (!validation.isValid) {
+    throw new Error(validation.threatReason || 'Adversarial instruction detected. Prompts are restricted to personal transactions.');
+  }
+
+  const cleanPrompt = validation.sanitizedPrompt;
+
   try {
     // Retrieve current user token if available
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData?.session?.access_token || supabaseAnonKey;
 
     const { data, error } = await supabase.functions.invoke('parse-transaction', {
-      body: { prompt },
+      body: { prompt: cleanPrompt },
       headers: {
         apikey: supabaseAnonKey,
         Authorization: `Bearer ${token}`,
@@ -91,16 +108,16 @@ export async function parseTransaction(prompt: string): Promise<ParsedTransactio
     });
 
     if (!error && data?.data) {
-      return data.data as ParsedTransaction;
+      return validateAndSanitizeParsedTransaction(data.data, cleanPrompt);
     }
 
     if (error) {
-      console.warn('Edge function returned error, using local parser:', error.message);
+      console.warn('Edge function returned error, using secure local parser:', error.message);
     }
   } catch (err) {
-    console.warn('Could not reach parse-transaction edge function, using local fallback:', err);
+    console.warn('Could not reach parse-transaction edge function, using secure local fallback:', err);
   }
 
-  // Graceful local parser fallback
-  return parseLocally(prompt);
+  // Graceful local parser fallback with strict validation
+  return parseLocally(cleanPrompt);
 }

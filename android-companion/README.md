@@ -43,14 +43,18 @@ This halts browser JavaScript execution, causing missed commute trips, broken sp
 
 ---
 
-## 📲 Pairing with Apex LifeOS
+## 📲 Secure Pairing with Apex LifeOS
+
+The mobile companion features **Zero-Exposure Credential Pairing** and **Hardware-Backed AES-256 Encryption**:
 
 1. Install and launch the **Apex Tracker** APK on your Android device.
 2. Grant Location permissions (**"Allow all the time"** for background tracking) and Notification permission.
 3. Tap **"Disable Battery Optimization"** so Android does not throttle background execution.
-4. Tap the **⚙️ Settings** icon in the top right:
-   * **Project URL**: Your Supabase project URL (e.g. `https://your-project.supabase.co`)
-   * **Anon Public Key**: Your Supabase anonymous public key
-   * **User Auth UUID**: Your user ID from Supabase Auth (`auth.users`)
-5. Tap **"Save & Connect"**, then tap **"START BACKGROUND TRACKING"**.
-6. In your Apex LifeOS web dashboard under **Location & Timeline**, select **"📱 Phone APK Daemon"** to view your live velocity, GPS coordinates, and commute trips streaming in real-time from your pocket!
+4. On your Apex LifeOS web dashboard, open **Location & Timeline** ➔ click **"Connect Phone APK"**.
+5. You have two secure, zero-exposure pairing choices:
+   * **1-Tap Token Pairing (Fastest)**: Click **"Copy Secure Pairing Token"** in the web modal, open the Android app's ⚙️ Settings dialog, paste it into the **"Fast 1-Tap Pairing"** field, and tap **"Import"**.
+   * **Visual QR Code Pairing**: Scan the pairing QR code directly using your phone's camera.
+   * **Manual Entry (Masked)**: If pasting manually, all fields (Project URL, Anon Key, User UUID) are masked with bullet dots (`••••••••`) with visual reveal toggles to prevent shoulder-surfing and screen capture leaks.
+6. Tap **"Save & Connect"** (credentials are encrypted into hardware-backed `EncryptedSharedPreferences` via MasterKey AES-256 GCM), then tap **"START BACKGROUND TRACKING"**.
+7. In your Apex LifeOS web dashboard under **Location & Timeline**, select **"📱 Phone APK Daemon"** to view your live velocity, GPS coordinates, and commute trips streaming in real-time from your pocket!
+
