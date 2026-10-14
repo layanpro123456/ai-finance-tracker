@@ -41,9 +41,9 @@ jobs:
         working-directory: android-companion
         run: |
           if [ -f "./gradlew" ]; then
-            ./gradlew assembleDebug --stacktrace
+            ./gradlew assembleDebug --stacktrace -Pandroid.useAndroidX=true
           else
-            gradle assembleDebug --stacktrace
+            gradle assembleDebug --stacktrace -Pandroid.useAndroidX=true
           fi
 
       - name: Upload Debug APK Artifact

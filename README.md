@@ -204,6 +204,7 @@ ai-finance-tracker/
 ├── android-companion/                   # Native Android Kotlin/Compose background location daemon
 │   ├── app/                             # Native Android app module (Service, Room, Supabase)
 │   ├── gradle/                          # Gradle wrapper configuration
+│   ├── gradle.properties                # AndroidX, JVM memory & build flags
 │   └── README.md                        # APK compilation, sideloading & pairing instructions
 ├── public/
 │   ├── favicon.svg                      # High-resolution Apex LifeOS SVG luxury fintech favicon
