@@ -38,7 +38,21 @@
       .no-print { display: none !important; }
       body { background-color: #030712 !important; -webkit-print-color-adjust: exact; }
     }
+    body.clean-mode .no-print,
+    .clean-mode .no-print {
+      display: none !important;
+    }
+    body.clean-mode,
+    .clean-mode body {
+      padding: 16px !important;
+      justify-content: flex-start !important;
+    }
   </style>
+  <script>
+    if (window.location.search.includes('clean') || window.location.hash.includes('clean')) {
+      document.documentElement.classList.add('clean-mode');
+    }
+  </script>
 </head>
 <body class="min-h-screen bg-[#030712] text-slate-100 flex flex-col items-center justify-center p-4 sm:p-10">
 
