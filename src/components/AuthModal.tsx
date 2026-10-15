@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { usePreferences } from '../context/PreferencesContext';
 import {
@@ -6,6 +6,12 @@ import {
   getDeviceName,
   getDeviceId,
 } from '../services/deviceSessionService';
+import {
+  getAuthRedirectUrl,
+  cleanAuthUrl,
+  parseAuthFeedbackFromUrl,
+  resendVerificationEmail,
+} from '../services/authRedirectService';
 import {
   Lock,
   Mail,
@@ -27,9 +33,14 @@ import {
 interface AuthModalProps {
   onSuccess: () => void;
   initialConflictNotice?: { activeDeviceName: string } | null;
+  initialAuthError?: string | null;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess, initialConflictNotice }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({
+  onSuccess,
+  initialConflictNotice,
+  initialAuthError,
+}) => {
   const { preferences, toggleTheme } = usePreferences();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
@@ -37,6 +48,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess, initialConflict
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  // Email verification pending state
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null);
+  const [resendingEmail, setResendingEmail] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState<string | null>(null);
 
   // Single-device conflict state
   const [deviceConflict, setDeviceConflict] = useState<{
@@ -48,18 +64,35 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess, initialConflict
   const thisDeviceName = getDeviceName();
   const thisDeviceId = getDeviceId();
 
+  useEffect(() => {
+    if (initialAuthError) {
+      setError(initialAuthError);
+    } else {
+      const feedback = parseAuthFeedbackFromUrl();
+      if (feedback.error) {
+        setError(feedback.error);
+        cleanAuthUrl();
+      }
+    }
+  }, [initialAuthError]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setMessage(null);
+    setResendSuccess(null);
     setDeviceConflict(null);
 
     try {
       if (isSignUp) {
+        const redirectUrl = getAuthRedirectUrl();
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            emailRedirectTo: redirectUrl,
+          },
         });
         if (signUpError) throw signUpError;
         if (data.session && data.session.user) {
@@ -74,7 +107,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess, initialConflict
           }
           onSuccess();
         } else {
-          setMessage('Account created! Please check your email to verify your address or log in.');
+          setPendingVerificationEmail(email);
         }
       } else {
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
@@ -101,6 +134,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess, initialConflict
       setError(errMessage);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!pendingVerificationEmail) return;
+    setResendingEmail(true);
+    setResendSuccess(null);
+    setError(null);
+    try {
+      const res = await resendVerificationEmail(pendingVerificationEmail);
+      if (res.success) {
+        setResendSuccess('A fresh verification link has been sent to your email.');
+      } else {
+        setError(res.error || 'Failed to resend verification link. Please wait a minute and try again.');
+      }
+    } catch {
+      setError('Failed to resend verification link. Please try again.');
+    } finally {
+      setResendingEmail(false);
     }
   };
 
@@ -208,8 +260,78 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess, initialConflict
           </div>
         )}
 
-        {/* If Active Device Conflict is encountered */}
-        {deviceConflict ? (
+        {/* If Verification Email was sent */}
+        {pendingVerificationEmail ? (
+          <div className="space-y-4 py-2 text-center">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-xl shadow-emerald-500/10">
+              <Mail className="w-7 h-7" />
+            </div>
+
+            <div>
+              <h2 className="text-lg font-bold text-white mb-1">Verify Your Email Address</h2>
+              <p className="text-xs text-slate-400 max-w-xs mx-auto">
+                We've sent an activation link to:
+              </p>
+              <div className="mt-2 inline-block px-3 py-1 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono font-bold text-emerald-400">
+                {pendingVerificationEmail}
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 text-left text-xs text-slate-400 space-y-2">
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <span>Click the verification link in your email to activate your account.</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <span>After clicking, you will be redirected straight to your dashboard without error.</span>
+              </div>
+            </div>
+
+            {resendSuccess && (
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>{resendSuccess}</span>
+              </div>
+            )}
+
+            {error && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <div className="space-y-2 pt-1">
+              <button
+                type="button"
+                onClick={handleResendVerification}
+                disabled={resendingEmail}
+                className="w-full bg-slate-800 hover:bg-slate-750 text-slate-200 font-semibold py-2.5 px-4 rounded-xl border border-slate-700/70 flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer text-xs"
+              >
+                {resendingEmail ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-3.5 h-3.5" />
+                )}
+                <span>Resend Verification Email</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingVerificationEmail(null);
+                  setError(null);
+                  setResendSuccess(null);
+                  setIsSignUp(false);
+                }}
+                className="w-full text-slate-400 hover:text-white py-2 text-xs font-medium transition cursor-pointer"
+              >
+                Back to Sign In
+              </button>
+            </div>
+          </div>
+        ) : deviceConflict ? (
           <div className="space-y-4 py-2">
             <div className="p-4 rounded-2xl bg-gradient-to-b from-amber-500/15 to-amber-950/20 border border-amber-500/30 text-center">
               <div className="w-12 h-12 mx-auto mb-3 rounded-2xl bg-amber-500/20 flex items-center justify-center text-amber-400 border border-amber-500/30 shadow-lg">

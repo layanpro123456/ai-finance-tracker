@@ -42,7 +42,12 @@ import {
   checkDeviceSessionValidity,
   terminateDeviceSession,
   getDeviceId,
+  registerDeviceSession,
 } from './services/deviceSessionService';
+import {
+  cleanAuthUrl,
+  parseAuthFeedbackFromUrl,
+} from './services/authRedirectService';
 
 import { usePreferences } from './context/PreferencesContext';
 import {
@@ -50,6 +55,7 @@ import {
   ArrowRight,
   CheckSquare,
   CreditCard,
+  CheckCircle2,
 } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 
@@ -107,22 +113,33 @@ export function App() {
 
   // Single Active Device Session State
   const [deviceKickoutNotice, setDeviceKickoutNotice] = useState<{ activeDeviceName: string } | null>(null);
-
+  const [initialAuthError, setInitialAuthError] = useState<string | null>(null);
+  const [verifiedNotification, setVerifiedNotification] = useState<boolean>(false);
 
   // 1. Check auth status on load & enforce single-device session
   useEffect(() => {
+    // Detect auth feedback (error or email confirmation) in URL
+    const feedback = parseAuthFeedbackFromUrl();
+    if (feedback.error) {
+      setInitialAuthError(feedback.error);
+      cleanAuthUrl();
+    } else if (feedback.isVerified) {
+      setVerifiedNotification(true);
+    }
+
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       const currentUser = session?.user ?? null;
       if (currentUser) {
-        // Enforce single-device ownership
-        const validity = await checkDeviceSessionValidity(currentUser.id);
-        if (!validity.isValid) {
+        // Enforce single-device ownership & ensure device session is registered
+        const reg = await registerDeviceSession(currentUser.id, false);
+        if (!reg.allowed) {
           setDeviceKickoutNotice({
-            activeDeviceName: validity.activeDeviceName || 'Another Device',
+            activeDeviceName: reg.activeDeviceName || 'Another Device',
           });
           await supabase.auth.signOut();
           setUser(null);
           setAuthChecking(false);
+          cleanAuthUrl();
           return;
         }
 
@@ -133,6 +150,7 @@ export function App() {
           setAdminSession(false);
         }
         logPlatformEvent('AUTH', 'User session active on Apex LifeOS', currentUser.id, currentUser.email || undefined);
+        cleanAuthUrl();
       }
       setUser(currentUser);
       setAuthChecking(false);
@@ -143,14 +161,15 @@ export function App() {
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
       const currentUser = session?.user ?? null;
       if (currentUser) {
-        const validity = await checkDeviceSessionValidity(currentUser.id);
-        if (!validity.isValid) {
+        const reg = await registerDeviceSession(currentUser.id, false);
+        if (!reg.allowed) {
           setDeviceKickoutNotice({
-            activeDeviceName: validity.activeDeviceName || 'Another Device',
+            activeDeviceName: reg.activeDeviceName || 'Another Device',
           });
           await supabase.auth.signOut();
           setUser(null);
           setAuthChecking(false);
+          cleanAuthUrl();
           return;
         }
 
@@ -160,6 +179,7 @@ export function App() {
           setIsAdmin(false);
           setAdminSession(false);
         }
+        cleanAuthUrl();
       }
       setUser(currentUser);
       setAuthChecking(false);
@@ -422,9 +442,11 @@ export function App() {
       <AuthModal
         onSuccess={() => {
           setDeviceKickoutNotice(null);
+          setInitialAuthError(null);
           fetchData();
         }}
         initialConflictNotice={deviceKickoutNotice}
+        initialAuthError={initialAuthError}
       />
     );
   }
@@ -437,6 +459,25 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 pb-16">
+      {/* Email Verified Toast Banner */}
+      {verifiedNotification && (
+        <div className="bg-emerald-500/15 border-b border-emerald-500/30 text-emerald-300 px-4 py-2 text-xs">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span><strong>Email Verified!</strong> Welcome to Apex LifeOS. Your session is now securely connected.</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setVerifiedNotification(false)}
+              className="text-slate-400 hover:text-white font-medium cursor-pointer text-xs"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Top ERP Navbar */}
       <Navbar
         userEmail={user.email || 'User'}

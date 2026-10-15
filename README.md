@@ -248,6 +248,7 @@ ai-finance-tracker/
 │   ├── services/
 │   │   ├── adminTelemetry.ts           # Privacy-first audit logging & admin email verification
 │   │   ├── aiSecurityGuard.ts          # Prompt injection scanner, adversarial pattern detector & schema validator
+│   │   ├── authRedirectService.ts      # Auth redirect normalizer, URL feedback parser & parameter cleaner
 │   │   ├── databaseAdminService.ts     # 1-Click database purge & clean 0.00 balance reset
 │   │   ├── deviceSessionService.ts     # Single-device session lock & hardware UUID
 │   │   ├── locationMobilityService.ts   # Haversine math, traffic classifier, simulator
@@ -256,6 +257,8 @@ ai-finance-tracker/
 │   │   └── index.ts                     # Core TypeScript schemas
 │   ├── App.tsx                          # Root coordinator & global shortcut handler (Ctrl+Shift+A)
 │   └── supabaseClient.ts               # Authenticated Supabase client instance with AI guard
+├── public/
+│   └── 404.html                         # SPA fallback router for GitHub Pages (preserves tokens & callbacks)
 ├── database_schema.md                   # Complete PostgreSQL DDL, RLS policies & indexes
 ├── setup_guide.md                       # Installation, environment setup & deployment guide
 ├── contributing_guidelines.md           # Development workflow, linting & security guidelines
@@ -283,14 +286,23 @@ VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 ### 3. Initialize Database Tables
 Execute the complete SQL definitions from [database_schema.md](database_schema.md) in your **Supabase SQL Editor** to initialize all 13 tables and Row-Level Security (RLS) policies.
 
-### 4. Launch Development Server
+### 4. Configure Authentication Redirect URLs (Prevent 404s)
+In **Supabase Dashboard > Authentication > URL Configuration**:
+* **Site URL**: `https://layanpro123456.github.io/ai-finance-tracker/` (or `http://localhost:5173` locally)
+* **Redirect URLs** (Allow-list):
+  * `https://layanpro123456.github.io/ai-finance-tracker/**`
+  * `http://localhost:5173/**`
+  * `http://127.0.0.1:5173/**`
+  * `http://localhost:3000/**`
+
+### 5. Launch Development Server
 ```bash
 npm run dev
 ```
 
 Visit `http://localhost:5173` in your browser.
 
-### 5. Access Administrator Portal
+### 6. Access Administrator Portal
 To access the administrative portal when logged in as `layanmoyura@proton.me`:
 * Press `Ctrl + Shift + A` (or `Cmd + Shift + A` on macOS)
 * Or append `#admin` to your browser URL

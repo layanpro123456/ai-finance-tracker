@@ -42,6 +42,7 @@ Most finance apps operate in isolation—they only track historical debits and c
 | **Device Sentinel** | Single active device login enforcement & device-bound location telemetry isolation | Hardware UUID, session takeover guard, and continuous heartbeat sentinel |
 | **Help & Guide** | Comprehensive user-facing tutorial with step-by-step interactive instructions | Mobile swipeable chapter navigator, non-technical instructions |
 | **Module Reset Controls**| Independent 1-click Reset button per subsystem with confirmation dialogs | In-place deletion and calibration for all individual modules |
+| **Clean Auth & SPA Router** | Dynamic URL redirection, token param sanitation, and GitHub Pages 404 SPA fallback | Eliminates 404s after clicking email verify link, cleans address bar codes, and auto-registers device sessions |
 
 ---
 

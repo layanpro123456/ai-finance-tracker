@@ -28,6 +28,14 @@ This guide walks through configuring Supabase, provisioning API keys, running Ap
    - **Project URL**
    - **anon / public key**
    - **service_role secret** *(store securely for GitHub Actions or Edge Functions only; never expose in frontend code)*.
+6. Go to **Authentication > URL Configuration** to prevent 404s on email verification:
+   - **Site URL**: `https://layanpro123456.github.io/ai-finance-tracker/` (or `http://localhost:5173` for local development)
+   - **Redirect URLs**:
+     - `https://layanpro123456.github.io/ai-finance-tracker/**`
+     - `http://localhost:5173/**`
+     - `http://127.0.0.1:5173/**`
+     - `http://localhost:3000/**`
+   *(This ensures verification links redirect directly into the SPA without hitting a 404 page).*
 
 ---
 
