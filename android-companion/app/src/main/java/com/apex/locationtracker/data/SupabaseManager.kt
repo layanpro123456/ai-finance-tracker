@@ -51,6 +51,7 @@ class SupabaseManager(private val context: Context) {
     companion object {
         private const val TAG = "SupabaseManager"
         private const val KEY_URL = "supabase_url"
+        private const val KEY_SUPABASE_URL = KEY_URL
         private const val KEY_ANON_KEY = "supabase_anon_key"
         private const val KEY_USER_ID = "supabase_user_id"
         private const val KEY_DEVICE_ID = "apex_device_id"
@@ -135,7 +136,7 @@ class SupabaseManager(private val context: Context) {
      */
     fun clearCredentials() {
         prefs.edit()
-            .remove(KEY_SUPABASE_URL)
+            .remove(KEY_URL)
             .remove(KEY_ANON_KEY)
             .remove(KEY_USER_ID)
             .apply()
