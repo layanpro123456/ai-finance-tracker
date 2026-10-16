@@ -9,6 +9,15 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/layanpro123456/ai-finance-tracker/actions/workflows/build-tracker-apk.yml">
+    <img src="https://github.com/layanpro123456/ai-finance-tracker/actions/workflows/build-tracker-apk.yml/badge.svg" alt="Build Android APK" />
+  </a>
+  <a href="https://github.com/layanpro123456/ai-finance-tracker/actions/workflows/deploy.yml">
+    <img src="https://github.com/layanpro123456/ai-finance-tracker/actions/workflows/deploy.yml/badge.svg" alt="Deploy to GitHub Pages" />
+  </a>
+</p>
+
+<p align="center">
   <a href="#key-features">Features</a> •
   <a href="#navigation--ui-architecture">Navigation & UI</a> •
   <a href="#security--administrative-governance">Admin & Security</a> •
@@ -199,7 +208,7 @@ To solve mobile browser background tab throttling and Doze mode process freezing
   * **Zero Connection Parameter Exposure**: Raw Project URLs, Anon Keys, and User UUIDs are completely removed from the pairing UI, eliminating screen recording leaks and shoulder-surfing risks.
   * **Visual QR Code & 1-Tap Token**: Point your phone camera at the screen or paste the single-string opaque pairing token (`apex_pair_v1_...`). No manual typing or raw keys required.
   * **Android Keystore AES-256 Storage**: The companion APK decrypts the token and persists connection credentials into hardware-backed `EncryptedSharedPreferences`.
-* **Automated Cloud Builds**: GitHub Actions workflow (`.github/workflows/build-tracker-apk.yml`) compiles the debug APK automatically on push or workflow dispatch.
+* **Automated Cloud Builds & Releases**: GitHub Actions workflow (`.github/workflows/build-tracker-apk.yml`) compiles both Debug and Release APKs automatically on push, release tag, or manual workflow dispatch with direct release asset downloads.
 
 ---
 

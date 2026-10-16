@@ -1,5 +1,7 @@
 # 🛰️ Apex Location Tracker (Android Companion APK)
 
+[![Build Android APK](https://github.com/layanpro123456/ai-finance-tracker/actions/workflows/build-tracker-apk.yml/badge.svg)](https://github.com/layanpro123456/ai-finance-tracker/actions/workflows/build-tracker-apk.yml)
+
 An ultra-lightweight, dedicated Android companion application built with **Kotlin**, **Jetpack Compose**, and **Google Play Services Fused Location Provider** for **Apex LifeOS**.
 
 ---
@@ -22,13 +24,27 @@ This halts browser JavaScript execution, causing missed commute trips, broken sp
 
 ---
 
-## 🚀 How to Build the APK
+## 🚀 How to Build the APK in GitHub
 
 ### Method 1: Automatic Cloud Build via GitHub Actions (Recommended)
-1. Push your repository to GitHub.
-2. Go to the **Actions** tab on your GitHub repository.
-3. Select **"Build Apex Location Tracker APK"** and click **Run workflow**.
-4. Once completed (~2 minutes), download the compiled **`apex-location-tracker-debug-apk`** artifact and install it directly on your Android phone!
+You do not need to install Android Studio or Java locally. The GitHub Actions workflow compiles the APK in the cloud:
+
+1. **Triggering the Build in GitHub**:
+   - Go to the **Actions** tab on your GitHub repository: [`ai-finance-tracker/actions`](https://github.com/layanpro123456/ai-finance-tracker/actions).
+   - In the left sidebar, click **"Build Apex Location Tracker APK"**.
+   - Click the **Run workflow** dropdown button on the right.
+   - Choose:
+     - **Build Type**: `both` (default), `debug`, or `release`.
+     - **Publish APK to GitHub Releases**: check this if you want direct `.apk` downloads published under GitHub Releases.
+   - Click **Run workflow**.
+
+2. **Automatic Triggers**:
+   - The build automatically runs on any `git push` modifying files in `android-companion/**`.
+   - Pushing a release tag (e.g. `v1.0.0`) automatically builds the APK and creates an official GitHub Release with downloadable `.apk` binaries.
+
+3. **Downloading the APK**:
+   - **From Actions Artifacts**: Once the workflow completes (~2 minutes), click on the completed run. Scroll down to **Artifacts** and download `apex-location-tracker-apk`.
+   - **From GitHub Releases**: If release creation was enabled, open the **Releases** tab on GitHub and download `ApexLocationTracker-debug.apk` directly on your phone with no unzipping required!
 
 ### Method 2: Local Build via Android Studio or Terminal
 1. Open the `android-companion` directory in **Android Studio** (Hedgehog, Iguana, or Koala).

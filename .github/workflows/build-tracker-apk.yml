@@ -2,10 +2,45 @@ name: Build Apex Location Tracker APK
 
 on:
   workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build Type (both, debug, or release)'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - 'both'
+          - 'debug'
+          - 'release'
+      create_release:
+        description: 'Publish APK to GitHub Releases (Direct .apk download)'
+        required: false
+        default: false
+        type: boolean
+      tag_name:
+        description: 'Release Tag Name (e.g. v1.0.0, if creating release)'
+        required: false
+        default: 'v1.0.0'
+        type: string
   push:
+    branches:
+      - main
     paths:
       - 'android-companion/**'
       - '.github/workflows/build-tracker-apk.yml'
+    tags:
+      - 'v*'
+  pull_request:
+    paths:
+      - 'android-companion/**'
+      - '.github/workflows/build-tracker-apk.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apk-build-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -24,31 +59,80 @@ jobs:
 
       - name: Accept Android SDK Licenses & Ensure Components
         run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0"
+          SDKMANAGER="${ANDROID_SDK_ROOT:-$ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+          if [ -x "$SDKMANAGER" ]; then
+            yes | "$SDKMANAGER" --licenses || true
+            "$SDKMANAGER" "platforms;android-34" "build-tools;34.0.0" "platform-tools" || true
+          fi
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
+          validate-wrappers: false
           build-root-directory: android-companion
 
       - name: Grant Execute Permission to Gradle Wrapper
         run: |
           chmod +x android-companion/gradlew || true
 
-      - name: Build Debug APK with Gradle
+      - name: Build APK with Gradle
         working-directory: android-companion
         run: |
-          if [ -f "./gradlew" ]; then
-            ./gradlew assembleDebug --stacktrace -Pandroid.useAndroidX=true
-          else
+          BUILD_TYPE="${{ github.event.inputs.build_type || 'both' }}"
+          echo "Selected build type: $BUILD_TYPE"
+          
+          if [ "$BUILD_TYPE" = "debug" ]; then
             gradle assembleDebug --stacktrace -Pandroid.useAndroidX=true
+          elif [ "$BUILD_TYPE" = "release" ]; then
+            gradle assembleRelease --stacktrace -Pandroid.useAndroidX=true
+          else
+            gradle assembleDebug assembleRelease --stacktrace -Pandroid.useAndroidX=true
           fi
 
-      - name: Upload Debug APK Artifact
+      - name: Organize & Rename APK Outputs
+        run: |
+          mkdir -p output-apks
+          if [ -f "android-companion/app/build/outputs/apk/debug/app-debug.apk" ]; then
+            cp android-companion/app/build/outputs/apk/debug/app-debug.apk output-apks/ApexLocationTracker-debug.apk
+            echo "Copied debug APK"
+          fi
+          if [ -f "android-companion/app/build/outputs/apk/release/app-release.apk" ]; then
+            cp android-companion/app/build/outputs/apk/release/app-release.apk output-apks/ApexLocationTracker-release.apk
+            echo "Copied release APK"
+          fi
+          ls -la output-apks/
+
+      - name: Upload APK Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: apex-location-tracker-debug-apk
-          path: android-companion/app/build/outputs/apk/debug/*.apk
+          name: apex-location-tracker-apk
+          path: output-apks/*.apk
           retention-days: 30
+
+      - name: Publish GitHub Release with APK
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: output-apks/*.apk
+          name: "Apex Location Tracker Companion APK ${{ github.ref_name || github.event.inputs.tag_name || 'v1.0.0' }}"
+          tag_name: ${{ github.ref_name || github.event.inputs.tag_name || 'v1.0.0' }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ### 🛰️ Apex Location Tracker Companion APK
+            
+            This release provides the compiled native Android companion APK for **Apex LifeOS**.
+            
+            #### 📦 Downloads:
+            - **`ApexLocationTracker-debug.apk`**: Pre-signed debug APK, recommended for direct sideloading and testing.
+            - **`ApexLocationTracker-release.apk`**: Optimized release APK (pre-signed, ready to sideload).
+            
+            #### 📲 Installation Instructions:
+            1. Download `ApexLocationTracker-debug.apk` directly on your Android device.
+            2. Tap the downloaded file to install (allow "Install unknown apps" in browser settings if prompted).
+            3. Grant Location ("Allow all the time") & Notification permissions.
+            4. In the Apex LifeOS web dashboard, open **Location & Timeline ➔ Connect Phone APK**, and pair using the **1-Tap Pairing Token** or QR Code.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
