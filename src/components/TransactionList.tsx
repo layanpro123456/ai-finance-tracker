@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { Transaction, Account, Category } from '../types';
 import { supabase } from '../supabaseClient';
 import { usePreferences } from '../context/PreferencesContext';
@@ -16,9 +16,18 @@ import {
   Loader2,
   RotateCcw,
   CheckCircle2,
+  Edit3,
+  ArrowRight,
 } from 'lucide-react';
 import { CurrencyLogo } from './CurrencyLogo';
-import { undoAccountTransaction, previewTransactionUndo, type UndoPreview } from '../services/transactionUndoService';
+import {
+  undoAccountTransaction,
+  previewTransactionUndo,
+  previewTransactionUpdate,
+  updateAccountTransaction,
+  type UndoPreview,
+  type UpdatePreview,
+} from '../services/transactionUndoService';
 
 interface TransactionListProps {
   userId: string;
@@ -38,6 +47,8 @@ export const TransactionList: React.FC<TransactionListProps> = ({
   onTransactionsUpdated,
 }) => {
   const { showError, showWarning, showSuccess } = useAlert();
+  const { formatCurrency, formatDate } = usePreferences();
+
   const [manualError, setManualError] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -52,6 +63,18 @@ export const TransactionList: React.FC<TransactionListProps> = ({
   const [manualCategoryId, setManualCategoryId] = useState('');
   const [manualDate, setManualDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [isSubmittingManual, setIsSubmittingManual] = useState(false);
+
+  // Edit transaction modal state
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editDescription, setEditDescription] = useState('');
+  const [editAmount, setEditAmount] = useState<number>(0);
+  const [editType, setEditType] = useState<'income' | 'expense'>('expense');
+  const [editAccountId, setEditAccountId] = useState('');
+  const [editCategoryId, setEditCategoryId] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   // Undo transaction state
   const [undoTargetTx, setUndoTargetTx] = useState<Transaction | null>(null);
@@ -101,6 +124,82 @@ export const TransactionList: React.FC<TransactionListProps> = ({
       showError(msg, 'Transaction Undo Failed');
     } finally {
       setIsUndoing(false);
+    }
+  };
+
+  const handleInitiateEdit = (t: Transaction) => {
+    setEditingTx(t);
+    setEditDescription(t.description || '');
+    setEditAmount(Number(t.amount) || 0);
+    setEditType(t.type);
+    setEditAccountId(t.account_id);
+    setEditCategoryId(t.category_id || '');
+    setEditDate(t.transaction_date || new Date().toISOString().split('T')[0]);
+    setEditError(null);
+    setShowEditModal(true);
+  };
+
+  // Compute live balance projection preview for editing modal
+  const editPreview: UpdatePreview | null = useMemo(() => {
+    if (!editingTx || !editAccountId) return null;
+    const oldAcc = accounts.find((a) => a.id === editingTx.account_id);
+    const newAcc = accounts.find((a) => a.id === editAccountId);
+    const oldBal = oldAcc ? Number(oldAcc.balance) : 0;
+    const newBal = newAcc ? Number(newAcc.balance) : 0;
+
+    return previewTransactionUpdate(
+      editingTx,
+      editAmount,
+      editType,
+      editAccountId,
+      oldBal,
+      newBal
+    );
+  }, [editingTx, editAmount, editType, editAccountId, accounts]);
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTx) return;
+
+    if (!editAccountId) {
+      setEditError('Please select an account.');
+      return;
+    }
+    if (!editAmount || editAmount <= 0) {
+      setEditError('Please enter an amount greater than zero.');
+      return;
+    }
+    setEditError(null);
+    setIsSavingEdit(true);
+
+    try {
+      await updateAccountTransaction({
+        transactionId: editingTx.id,
+        originalTransaction: editingTx,
+        newDescription: editDescription || 'Transaction',
+        newAmount: editAmount,
+        newType: editType,
+        newAccountId: editAccountId,
+        newCategoryId: editCategoryId || null,
+        newTransactionDate: editDate,
+        accountsFallback: accounts,
+        operator: {
+          userId,
+          userEmail,
+          isAdminAction: false,
+        },
+      });
+
+      setShowEditModal(false);
+      setEditingTx(null);
+      showSuccess(`Transaction "${editDescription || 'Transaction'}" updated and saved.`);
+      onTransactionsUpdated();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to update transaction';
+      setEditError(msg);
+      showError(msg, 'Transaction Update Failed');
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -180,8 +279,6 @@ export const TransactionList: React.FC<TransactionListProps> = ({
     }
   };
 
-  const { formatCurrency, formatDate } = usePreferences();
-
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
       {/* Header */}
@@ -193,7 +290,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
           <div>
             <h2 className="text-lg font-bold text-white tracking-tight">Transaction History</h2>
             <p className="text-xs text-slate-400">
-              {transactions.length} total entries recorded &bull; Undo transactions transaction-wise
+              {transactions.length} total entries recorded &bull; Edit transaction details &bull; Undo transaction-wise
             </p>
           </div>
         </div>
@@ -241,7 +338,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
           </div>
           <button
             onClick={() => setUndoFeedback(null)}
-            className="text-slate-400 hover:text-white text-[11px]"
+            className="text-slate-400 hover:text-white text-[11px] cursor-pointer"
           >
             Dismiss
           </button>
@@ -370,7 +467,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
             <select
               value={selectedCategoryFilter}
               onChange={(e) => setSelectedCategoryFilter(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
             >
               <option value="all">All Categories</option>
               {categories.map((c) => (
@@ -450,16 +547,30 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 flex-shrink-0">
+                <div className="flex items-center gap-2.5 flex-shrink-0">
                   <span
-                    className={`font-bold text-sm sm:text-base ${
+                    className={`font-bold text-sm sm:text-base mr-1 ${
                       isIncome ? 'text-emerald-400' : 'text-rose-400'
                     }`}
                   >
                     {isIncome ? '+' : '-'}
                     {formatCurrency(Number(t.amount))}
                   </span>
+
+                  {/* Option to Edit Transaction Details */}
                   <button
+                    type="button"
+                    onClick={() => handleInitiateEdit(t)}
+                    title={`Edit transaction details for "${t.description}"`}
+                    className="px-2.5 py-1.5 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border border-sky-500/25 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    <Edit3 className="w-3.5 h-3.5 text-sky-400" />
+                    <span className="hidden sm:inline">Edit</span>
+                  </button>
+
+                  {/* Option to Undo Transaction */}
+                  <button
+                    type="button"
                     onClick={() => handleInitiateUndo(t)}
                     title={`Undo this transaction and ${isIncome ? 'deduct' : 'refund'} ${formatCurrency(Number(t.amount))} on ${accountName}`}
                     className="px-2.5 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/25 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
@@ -474,6 +585,220 @@ export const TransactionList: React.FC<TransactionListProps> = ({
         </div>
       )}
 
+      {/* Edit Transaction Modal */}
+      {showEditModal && editingTx && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                  <Edit3 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Edit Transaction Details</h3>
+                  <p className="text-xs text-slate-400">
+                    Modify transaction fields and automatically synchronize balances
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingTx(null);
+                }}
+                className="text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              {editError && (
+                <UiAlert
+                  type="error"
+                  message={editError}
+                  onClose={() => setEditError(null)}
+                />
+              )}
+
+              {/* Dynamic Account Balance Preview Badge */}
+              {editPreview && (
+                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-xs space-y-1.5">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
+                    Real-time Balance Synchronization Impact
+                  </span>
+                  {editPreview.isSameAccount ? (
+                    <div className="flex items-center justify-between text-slate-300">
+                      <span>
+                        Current: <strong className="text-white">{formatCurrency(editPreview.previousBalance)}</strong>
+                      </span>
+                      <ArrowRight className="w-3.5 h-3.5 text-slate-500" />
+                      <span>
+                        Projected: <strong className="text-emerald-400">{formatCurrency(editPreview.projectedBalance)}</strong>
+                      </span>
+                      <span
+                        className={`font-semibold px-2 py-0.5 rounded text-[11px] ${
+                          editPreview.netDelta >= 0
+                            ? 'bg-emerald-500/15 text-emerald-300'
+                            : 'bg-rose-500/15 text-rose-300'
+                        }`}
+                      >
+                        {editPreview.netDelta >= 0 ? '+' : ''}
+                        {formatCurrency(editPreview.netDelta)}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="space-y-1 text-slate-300">
+                      <div className="flex items-center justify-between">
+                        <span>Revert Previous Account:</span>
+                        <span className="text-emerald-400 font-semibold">
+                          {formatCurrency(editPreview.oldAccountPrevBalance)} ➔ {formatCurrency(editPreview.oldAccountProjectedBalance)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Apply New Account:</span>
+                        <span className="text-rose-400 font-semibold">
+                          {formatCurrency(editPreview.newAccountPrevBalance)} ➔ {formatCurrency(editPreview.newAccountProjectedBalance)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Description */}
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                  Description
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Dinner, Monthly Rent, Salary"
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-sky-500/50"
+                />
+              </div>
+
+              {/* Amount and Type */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      Amount
+                    </label>
+                    <CurrencyLogo variant="badge" />
+                  </div>
+                  <div className="relative">
+                    <CurrencyLogo variant="input-prefix" />
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      min="0.01"
+                      value={editAmount}
+                      onChange={(e) => setEditAmount(parseFloat(e.target.value) || 0)}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-8 pr-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-sky-500/50 font-semibold"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                    Type
+                  </label>
+                  <select
+                    value={editType}
+                    onChange={(e) => setEditType(e.target.value as 'income' | 'expense')}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-sky-500/50 cursor-pointer"
+                  >
+                    <option value="expense">Expense (-)</option>
+                    <option value="income">Income (+)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Account Selection */}
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                  Payment Account
+                </label>
+                <select
+                  required
+                  value={editAccountId}
+                  onChange={(e) => setEditAccountId(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-sky-500/50 cursor-pointer"
+                >
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name} ({formatCurrency(Number(a.balance))})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Category and Date */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                    Category
+                  </label>
+                  <select
+                    value={editCategoryId}
+                    onChange={(e) => setEditCategoryId(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-sky-500/50 cursor-pointer"
+                  >
+                    <option value="">Uncategorized</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                    Transaction Date
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={editDate}
+                    onChange={(e) => setEditDate(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-sky-500/50 cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingTx(null);
+                  }}
+                  className="text-xs px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingEdit}
+                  className="text-xs px-5 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold flex items-center gap-2 transition disabled:opacity-50 cursor-pointer shadow-lg shadow-sky-500/20"
+                >
+                  {isSavingEdit && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>Save Changes</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Manual Entry Modal */}
       {showManualModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
@@ -482,7 +807,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
               <h3 className="text-lg font-bold text-white">Manual Transaction Entry</h3>
               <button
                 onClick={() => setShowManualModal(false)}
-                className="text-slate-400 hover:text-white"
+                className="text-slate-400 hover:text-white cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -537,7 +862,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                   <select
                     value={manualType}
                     onChange={(e) => setManualType(e.target.value as 'income' | 'expense')}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 cursor-pointer"
                   >
                     <option value="expense">Expense (-)</option>
                     <option value="income">Income (+)</option>
@@ -553,7 +878,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                   required
                   value={manualAccountId}
                   onChange={(e) => setManualAccountId(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 cursor-pointer"
                 >
                   {accounts.map((a) => (
                     <option key={a.id} value={a.id}>
@@ -571,7 +896,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                   <select
                     value={manualCategoryId}
                     onChange={(e) => setManualCategoryId(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 cursor-pointer"
                   >
                     {categories.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -589,12 +914,12 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                     required
                     value={manualDate}
                     onChange={(e) => setManualDate(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 cursor-pointer"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4">
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={() => setShowManualModal(false)}

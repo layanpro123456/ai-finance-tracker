@@ -23,11 +23,13 @@ import {
   X,
   Layers,
   Banknote,
+  BarChart3,
 } from 'lucide-react';
 import { getDeviceName } from '../services/deviceSessionService';
 
 export type ErpTab =
   | 'dashboard'
+  | 'stats'
   | 'transactions'
   | 'accounts'
   | 'cash'
@@ -74,6 +76,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const baseNavItems: { id: ErpTab; label: string; icon: React.ReactNode; badge?: number; description?: string }[] = [
     { id: 'dashboard', label: 'Overview', icon: <LayoutDashboard className="w-4 h-4" />, description: 'Metrics & AI Logger' },
+    { id: 'stats', label: 'Stats & Analytics', icon: <BarChart3 className="w-4 h-4 text-sky-400" />, description: 'Macro Trends & Pie Charts' },
     { id: 'tasks', label: 'Daily Tasks', icon: <CheckSquare className="w-4 h-4" />, description: 'Agenda & Bill Reminders' },
     {
       id: 'timeline',
@@ -199,7 +202,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onClick={toggleTheme}
                 type="button"
                 title={`Switch to ${preferences.theme === 'dark' ? 'Light' : 'Dark'} mode`}
-                className="p-1.5 sm:p-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white border border-slate-700/60 transition cursor-pointer shrink-0"
+                className="p-1.5 sm:p-2 rounded-xl bg-slate-800 hover:bg-slate-755 text-slate-300 hover:text-white border border-slate-700/60 transition cursor-pointer shrink-0"
               >
                 {preferences.theme === 'dark' ? (
                   <Sun className="w-4 h-4 text-amber-400" />
@@ -213,7 +216,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onClick={() => setIsSettingsOpen(true)}
                 type="button"
                 title="Adjust Currency, Country & Timezone"
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white border border-slate-700/60 transition cursor-pointer text-xs font-semibold shrink-0"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-755 text-slate-300 hover:text-white border border-slate-700/60 transition cursor-pointer text-xs font-semibold shrink-0"
               >
                 <Settings className="w-3.5 h-3.5 text-emerald-400" />
                 <span className="text-xs">{preferences.currency}</span>
@@ -249,7 +252,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 type="button"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 title={isMobileMenuOpen ? 'Close Menu' : 'Browse All ERP Modules'}
-                className="lg:hidden flex items-center gap-1 p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border border-slate-700/60 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white transition cursor-pointer text-xs font-semibold shrink-0"
+                className="lg:hidden flex items-center gap-1 p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border border-slate-700/60 bg-slate-800 hover:bg-slate-755 text-slate-300 hover:text-white transition cursor-pointer text-xs font-semibold shrink-0"
               >
                 {isMobileMenuOpen ? (
                   <X className="w-4 h-4 text-emerald-400" />
