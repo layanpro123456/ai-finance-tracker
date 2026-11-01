@@ -5,8 +5,11 @@ import {
   MobilityClassifier,
   computeDailyStatsFromPings,
   computeJourneyTelemetry,
+  partitionPingsIntoJourneys,
+  synthesizeJourneysFromPingsAndRecords,
+  journeySummaryToTelemetryMetrics,
 } from './locationMobilityService';
-import type { DeviceLocationPing } from '../types';
+import type { DeviceLocationPing, MobilityJourney } from '../types';
 
 describe('Location & Mobility Calculations', () => {
   it('should calculate geodesic distance between two GPS coordinates correctly', () => {
@@ -219,5 +222,159 @@ describe('Location & Mobility Calculations', () => {
     expect(metrics.travelTimeSeconds).toBe(30);
     expect(metrics.totalDistanceKm).toBeGreaterThan(6);
     expect(metrics.estimatedCost).toBeGreaterThan(0);
+  });
+
+  it('should partition pings by journey_id and temporal clusters', () => {
+    const testPings: DeviceLocationPing[] = [
+      {
+        id: 'p1',
+        user_id: 'usr-1',
+        device_id: 'dev-1',
+        journey_id: 'jrn-alpha',
+        pin_type: 'start',
+        latitude: 6.9271,
+        longitude: 79.8612,
+        speed_kmh: 0,
+        recorded_at: '2026-10-25T08:00:00.000Z',
+      },
+      {
+        id: 'p2',
+        user_id: 'usr-1',
+        device_id: 'dev-1',
+        journey_id: 'jrn-alpha',
+        pin_type: 'end',
+        latitude: 6.9000,
+        longitude: 79.8550,
+        speed_kmh: 30,
+        recorded_at: '2026-10-25T08:15:00.000Z',
+      },
+      {
+        id: 'p3',
+        user_id: 'usr-1',
+        device_id: 'dev-1',
+        journey_id: 'jrn-beta',
+        pin_type: 'start',
+        latitude: 6.9000,
+        longitude: 79.8550,
+        speed_kmh: 0,
+        recorded_at: '2026-10-25T14:00:00.000Z',
+      },
+      {
+        id: 'p4',
+        user_id: 'usr-1',
+        device_id: 'dev-1',
+        journey_id: 'jrn-beta',
+        pin_type: 'end',
+        latitude: 6.9271,
+        longitude: 79.8612,
+        speed_kmh: 35,
+        recorded_at: '2026-10-25T14:20:00.000Z',
+      },
+    ];
+
+    const partitioned = partitionPingsIntoJourneys(testPings);
+    expect(partitioned.size).toBe(2);
+    expect(partitioned.has('jrn-alpha')).toBe(true);
+    expect(partitioned.has('jrn-beta')).toBe(true);
+    expect(partitioned.get('jrn-alpha')?.length).toBe(2);
+    expect(partitioned.get('jrn-beta')?.length).toBe(2);
+  });
+
+  it('should synthesize journey summary items merging database records and telemetry', () => {
+    const mockDbJourneys: MobilityJourney[] = [
+      {
+        id: 'jrn-alpha',
+        user_id: 'usr-1',
+        device_id: 'dev-1',
+        title: 'Morning Office Commute',
+        status: 'completed',
+        start_time: '2026-10-25T08:00:00.000Z',
+        end_time: '2026-10-25T08:15:00.000Z',
+        start_latitude: 6.9271,
+        start_longitude: 79.8612,
+        end_latitude: 6.9000,
+        end_longitude: 79.8550,
+        total_distance_km: 3.2,
+        travel_time_seconds: 900,
+        avg_speed_kmh: 12.8,
+        max_speed_kmh: 30,
+        estimated_cost: 2.50,
+        is_cost_logged: true,
+        logged_transit_cost: 2.50,
+        primary_transport_mode: 'vehicle',
+        is_business_trip: true,
+        tax_deduction_amount: 2.14,
+      },
+    ];
+
+    const mockPings: DeviceLocationPing[] = [
+      {
+        id: 'p1',
+        user_id: 'usr-1',
+        device_id: 'dev-1',
+        journey_id: 'jrn-alpha',
+        pin_type: 'start',
+        latitude: 6.9271,
+        longitude: 79.8612,
+        speed_kmh: 0,
+        recorded_at: '2026-10-25T08:00:00.000Z',
+      },
+      {
+        id: 'p2',
+        user_id: 'usr-1',
+        device_id: 'dev-1',
+        journey_id: 'jrn-alpha',
+        pin_type: 'end',
+        latitude: 6.9000,
+        longitude: 79.8550,
+        speed_kmh: 30,
+        recorded_at: '2026-10-25T08:15:00.000Z',
+      },
+      {
+        id: 'p-standalone-1',
+        user_id: 'usr-1',
+        device_id: 'dev-1',
+        journey_id: 'jrn-gamma',
+        pin_type: 'start',
+        latitude: 6.8500,
+        longitude: 79.8600,
+        speed_kmh: 0,
+        recorded_at: '2026-10-25T18:00:00.000Z',
+      },
+      {
+        id: 'p-standalone-2',
+        user_id: 'usr-1',
+        device_id: 'dev-1',
+        journey_id: 'jrn-gamma',
+        pin_type: 'end',
+        latitude: 6.8000,
+        longitude: 79.8700,
+        speed_kmh: 40,
+        recorded_at: '2026-10-25T18:15:00.000Z',
+      },
+    ];
+
+    const items = synthesizeJourneysFromPingsAndRecords(mockDbJourneys, mockPings);
+    expect(items.length).toBe(2);
+
+    const alphaItem = items.find((i) => i.id === 'jrn-alpha');
+    expect(alphaItem).toBeDefined();
+    expect(alphaItem?.title).toBe('Morning Office Commute');
+    expect(alphaItem?.isCostLogged).toBe(true);
+    expect(alphaItem?.isBusinessTrip).toBe(true);
+    expect(alphaItem?.pingsCount).toBe(2);
+
+    const gammaItem = items.find((i) => i.id === 'jrn-gamma');
+    expect(gammaItem).toBeDefined();
+    expect(gammaItem?.totalDistanceKm).toBeGreaterThan(5);
+    expect(gammaItem?.isCostLogged).toBe(false);
+
+    // Test conversion to telemetry metrics
+    if (alphaItem) {
+      const telemetry = journeySummaryToTelemetryMetrics(alphaItem);
+      expect(telemetry.journeyId).toBe('jrn-alpha');
+      expect(telemetry.startPing?.id).toBe('p1');
+      expect(telemetry.endPing?.id).toBe('p2');
+    }
   });
 });

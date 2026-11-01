@@ -23,6 +23,8 @@ import {
   CheckCircle2,
   ArrowRight,
   Edit,
+  Eye,
+  X,
 } from 'lucide-react';
 
 export type BasemapTheme = 'dark' | 'esri' | 'osm' | 'vector';
@@ -35,6 +37,8 @@ export interface SriLankaMobilityMapProps {
   onStraightAwaySubmit?: (metrics: JourneyTelemetryMetrics) => void;
   onEditAndSubmit?: (metrics: JourneyTelemetryMetrics) => void;
   isCostLogged?: boolean;
+  selectedJourneyId?: string | null;
+  onSelectJourney?: (journeyId: string | null) => void;
 }
 
 // Sri Lanka Geography Constants
@@ -69,6 +73,8 @@ export const SriLankaMobilityMap: React.FC<SriLankaMobilityMapProps> = ({
   onStraightAwaySubmit,
   onEditAndSubmit,
   isCostLogged = false,
+  selectedJourneyId,
+  onSelectJourney,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -92,19 +98,26 @@ export const SriLankaMobilityMap: React.FC<SriLankaMobilityMapProps> = ({
     );
   }, [pings]);
 
+  // If a specific journey is focused, filter pings to that journey
+  const displayedPings = useMemo(() => {
+    if (!selectedJourneyId) return sortedPings;
+    const filtered = sortedPings.filter((p) => p.journey_id === selectedJourneyId);
+    return filtered.length > 0 ? filtered : sortedPings;
+  }, [sortedPings, selectedJourneyId]);
+
   // Derive Journey Telemetry Metrics (Start Pin, In-Travel Pins, End Pin, Time, Avg Speed, Cost)
   const journeyMetrics = useMemo(() => {
-    return computeJourneyTelemetry(sortedPings);
-  }, [sortedPings]);
+    return computeJourneyTelemetry(displayedPings);
+  }, [displayedPings]);
 
   // Reset scrubber when date changes or pings change
   useEffect(() => {
     setIsPlaying(false);
-    setScrubIndex(sortedPings.length > 0 ? sortedPings.length - 1 : 0);
-  }, [selectedDate, sortedPings.length]);
+    setScrubIndex(displayedPings.length > 0 ? displayedPings.length - 1 : 0);
+  }, [selectedDate, displayedPings.length, selectedJourneyId]);
 
   // Current active scrubbed ping
-  const activePing = sortedPings[scrubIndex] || sortedPings[sortedPings.length - 1] || null;
+  const activePing = displayedPings[scrubIndex] || displayedPings[displayedPings.length - 1] || null;
 
   // 1. Dynamic Leaflet script & css loader
   useEffect(() => {
@@ -268,17 +281,17 @@ export const SriLankaMobilityMap: React.FC<SriLankaMobilityMapProps> = ({
     routeGroup.clearLayers();
     scrubberMarkerRef.current = null;
 
-    if (sortedPings.length === 0) {
+    if (displayedPings.length === 0) {
       mapInstanceRef.current.setView([SRI_LANKA_CENTER.lat, SRI_LANKA_CENTER.lng], 8);
       return;
     }
 
-    const latLngs = sortedPings.map((p) => [p.latitude, p.longitude] as [number, number]);
+    const latLngs = displayedPings.map((p) => [p.latitude, p.longitude] as [number, number]);
 
     // Draw route segments color-coded by transport mode
-    for (let i = 0; i < sortedPings.length - 1; i++) {
-      const p1 = sortedPings[i];
-      const p2 = sortedPings[i + 1];
+    for (let i = 0; i < displayedPings.length - 1; i++) {
+      const p1 = displayedPings[i];
+      const p2 = displayedPings[i + 1];
 
       let color = '#3b82f6'; // vehicle default
       const mode = p2.transport_mode || 'vehicle';
@@ -298,11 +311,11 @@ export const SriLankaMobilityMap: React.FC<SriLankaMobilityMapProps> = ({
     }
 
     // 1. Identify Start, In-Travel (10s Waypoints), and End Pins
-    const startPing = sortedPings.find((p) => p.pin_type === 'start') || sortedPings[0];
+    const startPing = displayedPings.find((p) => p.pin_type === 'start') || displayedPings[0];
     const endPing =
-      [...sortedPings].reverse().find((p) => p.pin_type === 'end') ||
-      sortedPings[sortedPings.length - 1];
-    const inTravelPings = sortedPings.filter((p) => p !== startPing && p !== endPing);
+      [...displayedPings].reverse().find((p) => p.pin_type === 'end') ||
+      displayedPings[displayedPings.length - 1];
+    const inTravelPings = displayedPings.filter((p) => p !== startPing && p !== endPing);
 
     // 2. Add Start Point Marker (Emerald Pulsing Beacon)
     const startIcon = L.divIcon({
@@ -372,13 +385,13 @@ export const SriLankaMobilityMap: React.FC<SriLankaMobilityMapProps> = ({
     const travelDurationMins = Math.max(1, Math.round(travelDurationSec / 60));
 
     let tripDistKm = 0;
-    if (sortedPings.length > 2) {
-      for (let i = 0; i < sortedPings.length - 1; i++) {
+    if (displayedPings.length > 2) {
+      for (let i = 0; i < displayedPings.length - 1; i++) {
         tripDistKm += calculateDistanceKm(
-          sortedPings[i].latitude,
-          sortedPings[i].longitude,
-          sortedPings[i + 1].latitude,
-          sortedPings[i + 1].longitude
+          displayedPings[i].latitude,
+          displayedPings[i].longitude,
+          displayedPings[i + 1].latitude,
+          displayedPings[i + 1].longitude
         );
       }
     } else {
@@ -419,7 +432,7 @@ export const SriLankaMobilityMap: React.FC<SriLankaMobilityMapProps> = ({
       iconAnchor: [14, 14],
     });
 
-    const initialScrubPing = sortedPings[scrubIndex] || endPing;
+    const initialScrubPing = displayedPings[scrubIndex] || endPing;
     const scrubberMarker = L.marker([initialScrubPing.latitude, initialScrubPing.longitude], {
       icon: radarIcon,
       zIndexOffset: 1000,
@@ -433,7 +446,7 @@ export const SriLankaMobilityMap: React.FC<SriLankaMobilityMapProps> = ({
     } catch (e) {
       console.warn('Error fitting bounds:', e);
     }
-  }, [sortedPings, leafletLoaded, basemapTheme]);
+  }, [displayedPings, leafletLoaded, basemapTheme]);
 
   // 4. Update Scrubber Marker position when scrubIndex changes
   useEffect(() => {
@@ -443,12 +456,12 @@ export const SriLankaMobilityMap: React.FC<SriLankaMobilityMapProps> = ({
 
   // 5. Playback Animation Timer
   useEffect(() => {
-    if (!isPlaying || sortedPings.length === 0) return;
+    if (!isPlaying || displayedPings.length === 0) return;
 
     const intervalMs = Math.max(80, 1000 / (playbackSpeed * 3));
     const timer = setInterval(() => {
       setScrubIndex((prev) => {
-        if (prev >= sortedPings.length - 1) {
+        if (prev >= displayedPings.length - 1) {
           setIsPlaying(false);
           return prev;
         }
@@ -457,14 +470,14 @@ export const SriLankaMobilityMap: React.FC<SriLankaMobilityMapProps> = ({
     }, intervalMs);
 
     return () => clearInterval(timer);
-  }, [isPlaying, playbackSpeed, sortedPings.length]);
+  }, [isPlaying, playbackSpeed, displayedPings.length]);
 
   // Helper action: Fit route bounds
   const handleFitRoute = () => {
-    if (basemapTheme !== 'vector' && mapInstanceRef.current && sortedPings.length > 0) {
+    if (basemapTheme !== 'vector' && mapInstanceRef.current && displayedPings.length > 0) {
       const L = (window as any).L;
       if (!L) return;
-      const latLngs = sortedPings.map((p) => [p.latitude, p.longitude] as [number, number]);
+      const latLngs = displayedPings.map((p) => [p.latitude, p.longitude] as [number, number]);
       mapInstanceRef.current.fitBounds(L.latLngBounds(latLngs), { padding: [50, 50], maxZoom: 16 });
     }
   };
@@ -492,12 +505,12 @@ export const SriLankaMobilityMap: React.FC<SriLankaMobilityMapProps> = ({
 
   // SVG points path string
   const svgPathD = useMemo(() => {
-    if (sortedPings.length < 2) return '';
-    return sortedPings.reduce((acc, p, idx) => {
+    if (displayedPings.length < 2) return '';
+    return displayedPings.reduce((acc, p, idx) => {
       const { x, y } = projectToSvg(p.latitude, p.longitude);
       return idx === 0 ? `M ${x.toFixed(1)} ${y.toFixed(1)}` : `${acc} L ${x.toFixed(1)} ${y.toFixed(1)}`;
     }, '');
-  }, [sortedPings]);
+  }, [displayedPings]);
 
   // Mode badge helper
   const getModeBadge = (mode?: string) => {
@@ -523,7 +536,7 @@ export const SriLankaMobilityMap: React.FC<SriLankaMobilityMapProps> = ({
   };
 
   return (
-    <div className="relative flex flex-col rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden">
+    <div id="sri-lanka-mobility-map" className="relative flex flex-col rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden">
       {/* Header Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 bg-slate-950/80 border-b border-slate-800/80 backdrop-blur-md">
         <div className="flex items-center gap-2.5">
@@ -531,18 +544,29 @@ export const SriLankaMobilityMap: React.FC<SriLankaMobilityMapProps> = ({
             <Compass className="w-4 h-4 animate-spin-slow" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h3 className="text-sm font-bold tracking-wide text-white">
-                Sri Lanka Mobility & Route Explorer
+                Sri Lanka Mobility &amp; Route Explorer
               </h3>
               <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
                 🇱🇰 Island Track
               </span>
+              {selectedJourneyId && onSelectJourney && (
+                <button
+                  onClick={() => onSelectJourney(null)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 transition cursor-pointer"
+                  title="Clear journey focus and show all recorded pings"
+                >
+                  <Eye className="w-3 h-3 text-emerald-400" />
+                  <span>Viewing Journey ({displayedPings.length} pings)</span>
+                  <X className="w-3 h-3 text-emerald-400" />
+                </button>
+              )}
             </div>
             <p className="text-xs text-slate-400">
-              {sortedPings.length > 0 ? (
+              {displayedPings.length > 0 ? (
                 <>
-                  <span className="text-indigo-300 font-semibold">{sortedPings.length}</span> coordinate pings recorded on{' '}
+                  <span className="text-indigo-300 font-semibold">{displayedPings.length}</span> coordinate pings recorded on{' '}
                   <span className="text-slate-200 font-medium">{selectedDate}</span>
                 </>
               ) : (
@@ -557,7 +581,7 @@ export const SriLankaMobilityMap: React.FC<SriLankaMobilityMapProps> = ({
           {/* Quick Fit & Island Zoom Buttons */}
           <button
             onClick={handleFitRoute}
-            disabled={sortedPings.length === 0}
+            disabled={displayedPings.length === 0}
             title="Fit zoom to recorded journey"
             className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 disabled:opacity-40 transition-colors cursor-pointer"
           >
@@ -833,11 +857,11 @@ export const SriLankaMobilityMap: React.FC<SriLankaMobilityMapProps> = ({
               )}
 
               {/* Start & End Marker in Vector */}
-              {sortedPings.length > 0 && (() => {
-                const startPos = projectToSvg(sortedPings[0].latitude, sortedPings[0].longitude);
+              {displayedPings.length > 0 && (() => {
+                const startPos = projectToSvg(displayedPings[0].latitude, displayedPings[0].longitude);
                 const endPos = projectToSvg(
-                  sortedPings[sortedPings.length - 1].latitude,
-                  sortedPings[sortedPings.length - 1].longitude
+                  displayedPings[displayedPings.length - 1].latitude,
+                  displayedPings[displayedPings.length - 1].longitude
                 );
                 return (
                   <>
@@ -895,7 +919,7 @@ export const SriLankaMobilityMap: React.FC<SriLankaMobilityMapProps> = ({
                   {activePing.latitude.toFixed(5)}, {activePing.longitude.toFixed(5)}
                 </span>
                 <span className="ml-auto text-slate-500">
-                  #{scrubIndex + 1}/{sortedPings.length}
+                  #{scrubIndex + 1}/{displayedPings.length}
                 </span>
               </div>
             </div>
@@ -903,7 +927,7 @@ export const SriLankaMobilityMap: React.FC<SriLankaMobilityMapProps> = ({
         )}
 
         {/* Empty State Overlay */}
-        {!isLoading && sortedPings.length === 0 && (
+        {!isLoading && displayedPings.length === 0 && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-950/75 backdrop-blur-xs p-6 text-center">
             <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 mb-3">
               <MapPin className="w-6 h-6 animate-bounce" />
@@ -932,13 +956,13 @@ export const SriLankaMobilityMap: React.FC<SriLankaMobilityMapProps> = ({
       </div>
 
       {/* Scrubber & Playback Controls Bar */}
-      {sortedPings.length > 0 && (
+      {displayedPings.length > 0 && (
         <div className="flex flex-col gap-2.5 px-5 py-3.5 bg-slate-950/90 border-t border-slate-800">
           <div className="flex items-center gap-3">
             {/* Play/Pause Button */}
             <button
               onClick={() => {
-                if (scrubIndex >= sortedPings.length - 1) {
+                if (scrubIndex >= displayedPings.length - 1) {
                   setScrubIndex(0);
                 }
                 setIsPlaying(!isPlaying);
@@ -964,12 +988,12 @@ export const SriLankaMobilityMap: React.FC<SriLankaMobilityMapProps> = ({
             {/* Interactive Timeline Range Scrubber */}
             <div className="flex-1 flex items-center gap-2">
               <span className="text-[10px] font-mono text-slate-400">
-                {new Date(sortedPings[0].recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {new Date(displayedPings[0].recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
               <input
                 type="range"
                 min="0"
-                max={Math.max(0, sortedPings.length - 1)}
+                max={Math.max(0, displayedPings.length - 1)}
                 value={scrubIndex}
                 onChange={(e) => {
                   setIsPlaying(false);
@@ -978,7 +1002,7 @@ export const SriLankaMobilityMap: React.FC<SriLankaMobilityMapProps> = ({
                 className="flex-1 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500 focus:outline-none"
               />
               <span className="text-[10px] font-mono text-slate-400">
-                {new Date(sortedPings[sortedPings.length - 1].recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {new Date(displayedPings[displayedPings.length - 1].recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
 
