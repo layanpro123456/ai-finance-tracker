@@ -13,6 +13,8 @@ import type {
 import { AuthModal } from './components/AuthModal';
 import { Navbar, type ErpTab } from './components/Navbar';
 import { MetricCards } from './components/MetricCards';
+import { MonthlyStatsHistory } from './components/MonthlyStatsHistory';
+import { FinanceStatsManager } from './components/FinanceStatsManager';
 import { PredictiveCashFlow } from './components/PredictiveCashFlow';
 import { AiTransactionInput } from './components/AiTransactionInput';
 import { AccountManager } from './components/AccountManager';
@@ -521,6 +523,13 @@ export function App() {
               tasks={tasks}
             />
 
+            {/* Monthly Performance & Historical Stats with Expense Pie Chart */}
+            <MonthlyStatsHistory
+              transactions={transactions}
+              categories={categories}
+              onNavigateToStats={() => setActiveTab('stats')}
+            />
+
             {/* Predictive Cash Flow & Overdraft Forecast Engine */}
             <PredictiveCashFlow
               accounts={accounts}
@@ -711,6 +720,21 @@ export function App() {
         )}
 
         {/* ========================================================================= */}
+        {/* ========================================================================= */}
+        {/* WHOLE-FINANCE STATISTICS & MACRO ANALYTICS TAB */}
+        {/* ========================================================================= */}
+        {activeTab === 'stats' && (
+          <FinanceStatsManager
+            accounts={accounts}
+            categories={categories}
+            transactions={transactions}
+            assets={assets}
+            contactsLedger={contactsLedger}
+            tasks={tasks}
+            onNavigateTab={setActiveTab}
+          />
+        )}
+
         {/* DAILY TASKS & OPERATIONS TAB */}
         {/* ========================================================================= */}
         {activeTab === 'tasks' && (
