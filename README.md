@@ -236,13 +236,13 @@ Traditional personal finance apps only track what you spent *after* you've alrea
 | :--- | :--- | :--- | :--- |
 | **Frontend Framework** | [React](https://react.dev/) | `^19.3.1` | Declarative UI & Component Architecture |
 | **Type Safety** | [TypeScript](https://www.typescriptlang.org/) | `^7.0.2` | Strict compile-time validation & interfaces |
-| **Build Tooling** | [Vite](https://vite.dev/) | `^8.3.4` | Ultra-fast HMR, bundling, and asset pipeline |
+| **Build Tooling** | [Vite](https://vite.dev/) | `^8.3.5` | Ultra-fast HMR, bundling, and asset pipeline |
 | **Styling Engine** | [Tailwind CSS v4](https://tailwindcss.com/) | `^4.3.3` (`@tailwindcss/vite`) | Utility-first responsive design & dark mode |
-| **Form Management** | [React Hook Form](https://react-hook-form.com/) | `^7.90.0` | Performant, flexible forms with easy validation |
+| **Form Management** | [React Hook Form](https://react-hook-form.com/) | `^7.91.0` | Performant, flexible forms with easy validation |
 | **Schema Validation** | [Zod](https://zod.dev/) | `^4.6.7` (`@hookform/resolvers`) | TypeScript-first schema declaration & validation |
 | **Toast Notifications**| [Sonner](https://sonner.emilkowal.ski/) | `^2.0.8` | Luxury, non-blocking glassmorphic toast notification alerts |
 | **Unit Testing** | [Vitest](https://vitest.dev/) + [Happy-DOM](https://github.com/capricorn86/happy-dom) | `^5.0.5` / `^21.0.4` | Vite-native unit test runner & lightweight DOM environment |
-| **Iconography** | [Lucide React](https://lucide.dev/) | `^1.59.0` | Accessible fintech and operational icon library |
+| **Iconography** | [Lucide React](https://lucide.dev/) | `^1.66.0` | Accessible fintech and operational icon library |
 | **Backend & Database** | [Supabase](https://supabase.com/) | `@supabase/supabase-js: ^2.118.0` | PostgreSQL, Auth, Row-Level Security (RLS) |
 | **AI Intelligence** | [Google Gemini](https://ai.google.dev/) | 2.0 / 2.5 Flash | Natural language expense parsing & categorization |
 | **Hardware Sentinel** | Web Crypto UUID | Hardware Fingerprint | 1-Active-Device lock & telemetry isolation |
