@@ -11,11 +11,13 @@ import type {
   Task,
   ContactsLedger,
   DeviceLocationPing,
+  MobilityJourney,
 } from '../types';
 import { usePreferences } from '../context/PreferencesContext';
 import { useAlert } from '../context/AlertContext';
 import { CurrencyLogo } from './CurrencyLogo';
 import { SriLankaMobilityMap } from './SriLankaMobilityMap';
+import { JourneyWiseSummary } from './JourneyWiseSummary';
 import {
   calculateDistanceMeters,
   MobilityClassifier,
@@ -35,6 +37,9 @@ import {
   getEventsStorageKey,
   getStatsStorageKey,
   type JourneyTelemetryMetrics,
+  loadMobilityJourneys,
+  subscribeToMobilityJourneys,
+  synthesizeJourneysFromPingsAndRecords,
 } from '../services/locationMobilityService';
 import { getCurrentDeviceInfo } from '../services/deviceSessionService';
 import { supabase, supabaseUrl, supabaseAnonKey } from '../supabaseClient';
@@ -102,7 +107,7 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
   onTasksUpdated,
 }) => {
   const { preferences, formatCurrency } = usePreferences();
-  const { showError, showWarning } = useAlert();
+  const { showError, showWarning, showSuccess } = useAlert();
   const symbol = preferences.currencySymbol || '$';
 
   // State: Saved Places & Events
@@ -118,16 +123,21 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
   const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [, setAvailableDates] = useState<string[]>([]);
   const [dailyPings, setDailyPings] = useState<DeviceLocationPing[]>([]);
+  const [mobilityJourneys, setMobilityJourneys] = useState<MobilityJourney[]>([]);
+  const [selectedJourneyId, setSelectedJourneyId] = useState<string | null>(null);
+  const activeSimJourneyId = useRef<string>(`sim-journey-${Date.now()}`);
   const [isLoadingPings, setIsLoadingPings] = useState<boolean>(false);
 
   const loadDateData = useCallback(async (dateStr: string) => {
     setIsLoadingPings(true);
     try {
-      const [pings, stats] = await Promise.all([
+      const [pings, stats, journeys] = await Promise.all([
         loadDevicePingsForDate(userId, dateStr),
         loadDailyMobilityStats(userId, dateStr, deviceInfo.deviceId),
+        loadMobilityJourneys(userId, dateStr),
       ]);
       setDailyPings(pings);
+      setMobilityJourneys(journeys);
 
       if (!stats || stats.total_distance_km === 0) {
         if (pings.length > 0) {
@@ -153,6 +163,19 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
   useEffect(() => {
     loadDateData(selectedDate);
   }, [selectedDate, loadDateData]);
+
+  // Realtime subscription for companion APK journeys
+  useEffect(() => {
+    const unsub = subscribeToMobilityJourneys(userId, () => {
+      loadMobilityJourneys(userId, selectedDate).then(setMobilityJourneys);
+    });
+    return () => unsub();
+  }, [userId, selectedDate]);
+
+  // Synthesize unified journeys from database rows & pings
+  const synthesizedJourneys = useMemo(() => {
+    return synthesizeJourneysFromPingsAndRecords(mobilityJourneys, dailyPings);
+  }, [mobilityJourneys, dailyPings]);
 
   // Telemetry & GPS State
   const [isTracking, setIsTracking] = useState(true);
@@ -416,8 +439,8 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
       const wp = activeScenario.waypoints[nextIdx];
       const speed = simSpeedOverride !== null ? simSpeedOverride : wp.speedKmh;
 
-      const baseLat = simAnchorCoords.current?.latitude ?? places[0]?.latitude ?? 0;
-      const baseLng = simAnchorCoords.current?.longitude ?? places[0]?.longitude ?? 0;
+      const baseLat = simAnchorCoords.current?.latitude ?? places[0]?.latitude ?? 6.9271;
+      const baseLng = simAnchorCoords.current?.longitude ?? places[0]?.longitude ?? 79.8612;
       const nextLat = Number((baseLat + (wp.deltaLat ?? 0)).toFixed(6));
       const nextLng = Number((baseLng + (wp.deltaLng ?? 0)).toFixed(6));
 
@@ -429,9 +452,67 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
       setIsInTraffic(evaluation.inTraffic);
       setStatusMessage(`${evaluation.statusLabel} • ${wp.description}`);
 
+      // Emit simulated ping into dailyPings for real-time tracking display
+      const simPing: DeviceLocationPing = {
+        id: `sim-ping-${nextIdx}-${Date.now()}`,
+        user_id: userId,
+        device_id: deviceInfo.deviceId,
+        device_name: `${deviceInfo.deviceName} (Sim)`,
+        latitude: nextLat,
+        longitude: nextLng,
+        speed_kmh: speed,
+        transport_mode: evaluation.mode,
+        journey_id: activeSimJourneyId.current,
+        pin_type: nextIdx === 0 ? 'start' : nextIdx === activeScenario.waypoints.length - 1 ? 'end' : 'in_travel',
+        recorded_at: new Date().toISOString(),
+      };
+      setDailyPings((prev) => {
+        const next = [...prev, simPing];
+        const synthesized = computeDailyStatsFromPings(next, selectedDate, userId, deviceInfo.deviceId);
+        setDailyStats(synthesized);
+        return next;
+      });
+
       return nextIdx;
     });
-  }, [activeScenario, simSpeedOverride, manualModeLock, places]);
+  }, [activeScenario, simSpeedOverride, manualModeLock, places, userId, deviceInfo.deviceId, deviceInfo.deviceName, selectedDate]);
+
+  // Generate full simulated journey on demand
+  const handleGenerateSimulatedJourney = useCallback(() => {
+    if (!activeScenario || activeScenario.waypoints.length === 0) return;
+    const baseLat = simAnchorCoords.current?.latitude ?? places[0]?.latitude ?? 6.9271;
+    const baseLng = simAnchorCoords.current?.longitude ?? places[0]?.longitude ?? 79.8612;
+    const journeyId = `sim-journey-${Date.now()}`;
+    const now = new Date();
+
+    const simPings: DeviceLocationPing[] = activeScenario.waypoints.map((wp, idx) => {
+      const pingTime = new Date(now.getTime() - (activeScenario.waypoints.length - 1 - idx) * 30 * 1000);
+      const isStart = idx === 0;
+      const isEnd = idx === activeScenario.waypoints.length - 1;
+      return {
+        id: `sim-ping-${journeyId}-${idx}`,
+        user_id: userId,
+        device_id: deviceInfo.deviceId,
+        device_name: `${deviceInfo.deviceName} (Sim)`,
+        latitude: Number((baseLat + (wp.deltaLat ?? 0)).toFixed(6)),
+        longitude: Number((baseLng + (wp.deltaLng ?? 0)).toFixed(6)),
+        speed_kmh: wp.speedKmh,
+        transport_mode: wp.speedKmh < 8 ? 'walking' : 'vehicle',
+        journey_id: journeyId,
+        pin_type: isStart ? 'start' : isEnd ? 'end' : 'in_travel',
+        recorded_at: pingTime.toISOString(),
+      };
+    });
+
+    setDailyPings((prev) => {
+      const next = [...prev, ...simPings];
+      const synthesized = computeDailyStatsFromPings(next, selectedDate, userId, deviceInfo.deviceId);
+      setDailyStats(synthesized);
+      return next;
+    });
+    setSelectedJourneyId(journeyId);
+    showSuccess(`Simulated journey generated: ${activeScenario.name} (${simPings.length} waypoints)`);
+  }, [activeScenario, places, userId, deviceInfo.deviceId, deviceInfo.deviceName, selectedDate, showSuccess]);
 
   useEffect(() => {
     if (trackingSource !== 'simulation' || !isTracking || !isSimPlaying) {
@@ -452,12 +533,13 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
   const handleSelectScenario = (scenarioId: string) => {
     setSelectedScenarioId(scenarioId);
     setSimWaypointIndex(0);
+    activeSimJourneyId.current = `sim-journey-${Date.now()}`;
     classifierRef.current.resetTrip();
     const sc = SIMULATION_SCENARIOS.find((s) => s.id === scenarioId);
     if (sc && sc.waypoints[0]) {
       const wp = sc.waypoints[0];
-      const baseLat = simAnchorCoords.current?.latitude ?? places[0]?.latitude ?? 0;
-      const baseLng = simAnchorCoords.current?.longitude ?? places[0]?.longitude ?? 0;
+      const baseLat = simAnchorCoords.current?.latitude ?? places[0]?.latitude ?? 6.9271;
+      const baseLng = simAnchorCoords.current?.longitude ?? places[0]?.longitude ?? 79.8612;
       const nextLat = Number((baseLat + (wp.deltaLat ?? 0)).toFixed(6));
       const nextLng = Number((baseLng + (wp.deltaLng ?? 0)).toFixed(6));
 
@@ -592,6 +674,11 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
       const refreshedStats = await loadDailyMobilityStats(userId, today, deviceInfo.deviceId);
       setDailyStats(refreshedStats);
 
+      // Refresh journeys list
+      const refreshedJourneys = await loadMobilityJourneys(userId, selectedDate);
+      setMobilityJourneys(refreshedJourneys);
+      showSuccess(`Commute expense of ${symbol}${amountToLog.toFixed(2)} recorded to ledger!`);
+
       // Notify parent to refresh transactions & balance sheets
       onTransactionsUpdated();
     } catch (err: any) {
@@ -709,6 +796,11 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
         const today = new Date().toISOString().slice(0, 10);
         const refreshedStats = await loadDailyMobilityStats(userId, today, deviceInfo.deviceId);
         setDailyStats(refreshedStats);
+
+        // Refresh journeys list
+        const refreshedJourneys = await loadMobilityJourneys(userId, selectedDate);
+        setMobilityJourneys(refreshedJourneys);
+        showSuccess(`Commute expense of ${symbol}${amountToLog.toFixed(2)} recorded to ledger!`);
 
         // Notify parent to refresh transactions & balances
         onTransactionsUpdated();
@@ -1422,9 +1514,28 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
         selectedDate={selectedDate}
         isLoading={isLoadingPings}
         currencySymbol={symbol}
+        selectedJourneyId={selectedJourneyId}
+        onSelectJourney={setSelectedJourneyId}
         onStraightAwaySubmit={handleStraightAwaySubmit}
         onEditAndSubmit={handleOpenEditAndSubmit}
         isCostLogged={events.some((e) => e.is_cost_logged && e.start_time.startsWith(selectedDate))}
+      />
+
+      {/* ===================================================================== */}
+      {/* 2.2 JOURNEY-WISE SUMMARY IN TRACKING MODULE (ONE JOURNEY UNDER ONE IN A FLEX GRID) */}
+      {/* ===================================================================== */}
+      <JourneyWiseSummary
+        userId={userId}
+        selectedDate={selectedDate}
+        journeys={synthesizedJourneys}
+        currencySymbol={symbol}
+        selectedJourneyId={selectedJourneyId}
+        onSelectJourney={setSelectedJourneyId}
+        onStraightAwaySubmit={handleStraightAwaySubmit}
+        onEditAndSubmit={handleOpenEditAndSubmit}
+        onRefreshJourneys={() => loadDateData(selectedDate)}
+        onSimulateScenario={handleGenerateSimulatedJourney}
+        isLoading={isLoadingPings}
       />
 
       {/* ===================================================================== */}

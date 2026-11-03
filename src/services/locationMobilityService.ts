@@ -9,6 +9,7 @@ import type {
   Task,
   ContactsLedger,
   DeviceLocationPing,
+  MobilityJourney,
 } from '../types';
 import { getDeviceId, getDeviceName } from './deviceSessionService';
 
@@ -991,5 +992,320 @@ export function computeJourneyTelemetry(pings: DeviceLocationPing[]): JourneyTel
     maxSpeedKmh: Number(maxSpeedKmh.toFixed(1)),
     estimatedCost,
     primaryTransportMode,
+  };
+}
+
+// ============================================================================
+// Journey Partitioning, Synthesis, and Ledger Persistence
+// ============================================================================
+
+export interface JourneySummaryItem {
+  id: string;
+  title: string;
+  status: 'in_progress' | 'completed' | 'cancelled';
+  startTime: string;
+  endTime?: string | null;
+  travelTimeSeconds: number;
+  totalDistanceKm: number;
+  avgSpeedKmh: number;
+  maxSpeedKmh: number;
+  estimatedCost: number;
+  isCostLogged: boolean;
+  loggedTransitCost?: number;
+  primaryTransportMode: TransportMode;
+  isBusinessTrip?: boolean;
+  taxDeductionAmount?: number;
+  relatedTransactionId?: string | null;
+  startAddress?: string | null;
+  endAddress?: string | null;
+  startLatitude?: number | null;
+  startLongitude?: number | null;
+  endLatitude?: number | null;
+  endLongitude?: number | null;
+  notes?: string | null;
+  deviceId?: string;
+  deviceName?: string;
+  pingsCount: number;
+  startPing?: DeviceLocationPing | null;
+  endPing?: DeviceLocationPing | null;
+  inTravelPings?: DeviceLocationPing[];
+}
+
+export function journeySummaryToTelemetryMetrics(item: JourneySummaryItem): JourneyTelemetryMetrics {
+  return {
+    journeyId: item.id,
+    startPing: item.startPing || null,
+    endPing: item.endPing || null,
+    inTravelPings: item.inTravelPings || [],
+    travelTimeSeconds: item.travelTimeSeconds,
+    totalDistanceKm: item.totalDistanceKm,
+    avgSpeedKmh: item.avgSpeedKmh,
+    maxSpeedKmh: item.maxSpeedKmh,
+    estimatedCost: item.estimatedCost,
+    primaryTransportMode: item.primaryTransportMode,
+  };
+}
+
+export function partitionPingsIntoJourneys(
+  pings: DeviceLocationPing[]
+): Map<string, DeviceLocationPing[]> {
+  const journeyMap = new Map<string, DeviceLocationPing[]>();
+  if (pings.length === 0) return journeyMap;
+
+  const sorted = [...pings].sort(
+    (a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime()
+  );
+
+  let currentSynthId: string | null = null;
+  let lastPingTime: number | null = null;
+
+  for (let i = 0; i < sorted.length; i++) {
+    const p = sorted[i];
+    const pingTime = new Date(p.recorded_at).getTime();
+
+    if (p.journey_id) {
+      const list = journeyMap.get(p.journey_id) || [];
+      list.push(p);
+      journeyMap.set(p.journey_id, list);
+      currentSynthId = null;
+    } else {
+      // Begin a new journey on 'start' pin or significant time gap (>20 mins)
+      const isStartPin = p.pin_type === 'start';
+      const isTimeGap = lastPingTime !== null && pingTime - lastPingTime > 20 * 60 * 1000;
+
+      if (!currentSynthId || isStartPin || isTimeGap) {
+        currentSynthId = `session-${new Date(p.recorded_at).toISOString().slice(0, 16)}-${i}`;
+      }
+
+      const list = journeyMap.get(currentSynthId) || [];
+      list.push(p);
+      journeyMap.set(currentSynthId, list);
+
+      if (p.pin_type === 'end') {
+        currentSynthId = null;
+      }
+    }
+    lastPingTime = pingTime;
+  }
+
+  return journeyMap;
+}
+
+export function synthesizeJourneysFromPingsAndRecords(
+  mobilityJourneys: MobilityJourney[],
+  pings: DeviceLocationPing[]
+): JourneySummaryItem[] {
+  const pingGroups = partitionPingsIntoJourneys(pings);
+  const items: JourneySummaryItem[] = [];
+  const processedJourneyIds = new Set<string>();
+
+  // 1. Process database records from mobility_journeys
+  for (const mj of mobilityJourneys) {
+    processedJourneyIds.add(mj.id);
+    const matchingPings = pingGroups.get(mj.id) || [];
+    const telemetry = matchingPings.length > 0 ? computeJourneyTelemetry(matchingPings) : null;
+
+    const totalDistance = telemetry
+      ? telemetry.totalDistanceKm
+      : Number(mj.total_distance_km || 0);
+
+    const travelTimeSeconds = telemetry
+      ? telemetry.travelTimeSeconds
+      : mj.travel_time_seconds || 0;
+
+    const avgSpeed = telemetry
+      ? telemetry.avgSpeedKmh
+      : Number(mj.avg_speed_kmh || 0);
+
+    const maxSpeed = telemetry
+      ? telemetry.maxSpeedKmh
+      : Number(mj.max_speed_kmh || avgSpeed);
+
+    const estimatedCost = telemetry
+      ? telemetry.estimatedCost
+      : Number(mj.estimated_cost || 0);
+
+    const mode = telemetry?.primaryTransportMode || (mj.primary_transport_mode as TransportMode) || 'vehicle';
+
+    items.push({
+      id: mj.id,
+      title: mj.title || 'Recorded Journey',
+      status: mj.status || 'completed',
+      startTime: mj.start_time,
+      endTime: mj.end_time || (telemetry?.endPing ? telemetry.endPing.recorded_at : null),
+      travelTimeSeconds,
+      totalDistanceKm: Number(totalDistance.toFixed(2)),
+      avgSpeedKmh: Number(avgSpeed.toFixed(1)),
+      maxSpeedKmh: Number(maxSpeed.toFixed(1)),
+      estimatedCost: Number(estimatedCost.toFixed(2)),
+      isCostLogged: !!mj.is_cost_logged,
+      loggedTransitCost: mj.logged_transit_cost ? Number(mj.logged_transit_cost) : undefined,
+      primaryTransportMode: mode,
+      isBusinessTrip: mj.is_business_trip,
+      taxDeductionAmount: mj.tax_deduction_amount
+        ? Number(mj.tax_deduction_amount)
+        : Number((totalDistance * 0.67).toFixed(2)),
+      relatedTransactionId: mj.related_transaction_id,
+      startAddress: mj.start_address,
+      endAddress: mj.end_address,
+      startLatitude: telemetry?.startPing?.latitude ?? mj.start_latitude,
+      startLongitude: telemetry?.startPing?.longitude ?? mj.start_longitude,
+      endLatitude: telemetry?.endPing?.latitude ?? mj.end_latitude,
+      endLongitude: telemetry?.endPing?.longitude ?? mj.end_longitude,
+      notes: mj.notes,
+      deviceId: mj.device_id,
+      deviceName: mj.device_name,
+      pingsCount: matchingPings.length,
+      startPing: telemetry?.startPing || null,
+      endPing: telemetry?.endPing || null,
+      inTravelPings: telemetry?.inTravelPings || [],
+    });
+  }
+
+  // 2. Process any ping clusters that don't have a record in mobility_journeys
+  let synthCounter = 1;
+  for (const [journeyId, groupPings] of pingGroups.entries()) {
+    if (processedJourneyIds.has(journeyId)) continue;
+
+    const telemetry = computeJourneyTelemetry(groupPings);
+    if (!telemetry) continue;
+
+    const lastPing = groupPings[groupPings.length - 1];
+    const isOngoing =
+      lastPing?.pin_type !== 'end' &&
+      Date.now() - new Date(lastPing.recorded_at).getTime() < 10 * 60 * 1000;
+
+    const startPing = telemetry.startPing;
+    const endPing = telemetry.endPing;
+    const firstPing = groupPings[0];
+
+    items.push({
+      id: journeyId,
+      title: groupPings[0]?.pin_type === 'start' ? `Journey #${synthCounter}` : `Commute Session #${synthCounter}`,
+      status: isOngoing ? 'in_progress' : 'completed',
+      startTime: startPing?.recorded_at || firstPing.recorded_at,
+      endTime: isOngoing ? null : endPing?.recorded_at || lastPing.recorded_at,
+      travelTimeSeconds: telemetry.travelTimeSeconds,
+      totalDistanceKm: telemetry.totalDistanceKm,
+      avgSpeedKmh: telemetry.avgSpeedKmh,
+      maxSpeedKmh: telemetry.maxSpeedKmh,
+      estimatedCost: telemetry.estimatedCost,
+      isCostLogged: false,
+      primaryTransportMode: telemetry.primaryTransportMode,
+      startLatitude: startPing?.latitude,
+      startLongitude: startPing?.longitude,
+      endLatitude: endPing?.latitude,
+      endLongitude: endPing?.longitude,
+      deviceId: firstPing.device_id,
+      deviceName: firstPing.device_name,
+      pingsCount: groupPings.length,
+      startPing,
+      endPing,
+      inTravelPings: telemetry.inTravelPings,
+      taxDeductionAmount: Number((telemetry.totalDistanceKm * 0.67).toFixed(2)),
+    });
+    synthCounter++;
+  }
+
+  // Sort descending by start time (newest journeys first)
+  return items.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+}
+
+export async function loadMobilityJourneys(
+  userId: string,
+  dateStr?: string,
+  deviceId?: string
+): Promise<MobilityJourney[]> {
+  try {
+    let query = supabase
+      .from('mobility_journeys')
+      .select('*')
+      .eq('user_id', userId)
+      .order('start_time', { ascending: false });
+
+    if (dateStr) {
+      const startOfDay = new Date(`${dateStr}T00:00:00`);
+      const endOfDay = new Date(`${dateStr}T23:59:59.999`);
+      const startIso = isNaN(startOfDay.getTime()) ? `${dateStr}T00:00:00.000Z` : startOfDay.toISOString();
+      const endIso = isNaN(endOfDay.getTime()) ? `${dateStr}T23:59:59.999Z` : endOfDay.toISOString();
+
+      query = query.gte('start_time', startIso).lte('start_time', endIso);
+    }
+
+    if (deviceId) {
+      query = query.eq('device_id', deviceId);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      console.warn('Error loading mobility journeys:', error.message);
+      return [];
+    }
+    return (data || []) as MobilityJourney[];
+  } catch (err) {
+    console.warn('Network error loading mobility journeys:', err);
+    return [];
+  }
+}
+
+export async function updateMobilityJourney(
+  journeyId: string,
+  updates: Partial<MobilityJourney>
+): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('mobility_journeys')
+      .update(updates)
+      .eq('id', journeyId);
+    if (error) {
+      console.warn('Error updating mobility journey:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Network error updating mobility journey:', err);
+    return false;
+  }
+}
+
+export async function deleteMobilityJourney(journeyId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('mobility_journeys')
+      .delete()
+      .eq('id', journeyId);
+    if (error) {
+      console.warn('Error deleting mobility journey:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Network error deleting mobility journey:', err);
+    return false;
+  }
+}
+
+export function subscribeToMobilityJourneys(
+  userId: string,
+  onUpdate: () => void
+): () => void {
+  const channel = supabase
+    .channel(`mobility_journeys_realtime_${userId}_${Math.random()}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'mobility_journeys',
+        filter: `user_id=eq.${userId}`,
+      },
+      () => {
+        onUpdate();
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
   };
 }
