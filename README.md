@@ -12,6 +12,9 @@
   <a href="https://github.com/layanmoyura/ai-finance-tracker/actions/workflows/build-tracker-apk.yml">
     <img src="https://github.com/layanmoyura/ai-finance-tracker/actions/workflows/build-tracker-apk.yml/badge.svg" alt="Build Android APK" />
   </a>
+  <a href="https://github.com/layanmoyura/ai-finance-tracker/releases/latest">
+    <img src="https://img.shields.io/github/v/release/layanmoyura/ai-finance-tracker?label=APK%20Release&color=10b981&logo=android" alt="Latest Android APK Release" />
+  </a>
   <a href="https://github.com/layanmoyura/ai-finance-tracker/actions/workflows/deploy.yml">
     <img src="https://github.com/layanmoyura/ai-finance-tracker/actions/workflows/deploy.yml/badge.svg" alt="Deploy to GitHub Pages" />
   </a>
@@ -264,7 +267,13 @@ To solve mobile browser background tab throttling and Doze mode process freezing
   * **Zero Connection Parameter Exposure**: Raw Project URLs, Anon Keys, and User UUIDs are completely removed from the pairing UI, eliminating screen recording leaks and shoulder-surfing risks.
   * **Visual QR Code & 1-Tap Token**: Point your phone camera at the screen or paste the single-string opaque pairing token (`apex_pair_v1_...`). No manual typing or raw keys required.
   * **Android Keystore AES-256 Storage**: The companion APK decrypts the token and persists connection credentials into hardware-backed `EncryptedSharedPreferences`.
-* **Automated Cloud Builds & Releases**: GitHub Actions workflow (`.github/workflows/build-tracker-apk.yml`) compiles both Debug and Release APKs automatically on push, release tag, or manual workflow dispatch with direct release asset downloads.
+* **Automated Cloud Builds & Auto-Release After Every Build**: The GitHub Actions workflow ([`.github/workflows/build-tracker-apk.yml`](.github/workflows/build-tracker-apk.yml)) automatically compiles and publishes an official GitHub Release after every build on `main` or manual workflow dispatch.
+  * **Dynamic CI/CD Versioning**: Dynamically resolves unique, strictly increasing release tags (`v1.0.<run_number>`), preventing release collisions and ensuring every build produces a fresh release.
+  * **Seamless In-Place Android Updates**: Injects `versionCode` (`github.run_number`) and `versionName` (`1.0.<run_number>`) directly into Gradle at compile-time, allowing Android users to update installed APKs in-place without uninstalling.
+  * **Direct Sideload Downloads via `/releases/latest`**: GitHub Releases permalinks guarantee instant access to the newest binaries:
+    * 📥 **[Latest Release Page](https://github.com/layanmoyura/ai-finance-tracker/releases/latest)**
+    * 📲 **Direct Debug APK**: [`ApexLocationTracker-debug.apk`](https://github.com/layanmoyura/ai-finance-tracker/releases/latest/download/ApexLocationTracker-debug.apk)
+    * ⚡ **Direct Release APK**: [`ApexLocationTracker-release.apk`](https://github.com/layanmoyura/ai-finance-tracker/releases/latest/download/ApexLocationTracker-release.apk)
 
 ---
 
@@ -274,7 +283,7 @@ To solve mobile browser background tab throttling and Doze mode process freezing
 ai-finance-tracker/
 ├── .github/
 │   └── workflows/
-│       └── build-tracker-apk.yml        # Automated GitHub Actions APK build workflow
+│       └── build-tracker-apk.yml        # Automated GitHub Actions APK build & auto-release workflow
 ├── android-companion/                   # Native Android Kotlin/Compose background location daemon
 │   ├── app/                             # Native Android app module (Service, Room, Supabase)
 │   ├── gradle/                          # Gradle wrapper configuration

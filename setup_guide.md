@@ -183,3 +183,31 @@ npm run preview
 3. Navigate to **Settings > Pages**:
    - Under **Build and deployment > Source**, select **GitHub Actions**.
 4. Push a commit to the `main` branch to trigger automated testing and deployment.
+
+---
+
+## Step 8: Android Companion APK: Cloud Build & Auto-Release CI/CD
+
+Apex LifeOS provides an automated GitHub Actions pipeline ([`.github/workflows/build-tracker-apk.yml`](.github/workflows/build-tracker-apk.yml)) that compiles and auto-releases the native Android companion APK after every build:
+
+### 1. Automatic Triggers & Version Resolution
+* **Automatic Push Trigger:** Pushing any commit touching `android-companion/**` or `.github/workflows/build-tracker-apk.yml` on the `main` branch initiates the build.
+* **Tag Trigger:** Pushing a Git tag (e.g. `git tag v1.1.0 && git push origin v1.1.0`) creates a release pinned to that version.
+* **Manual Trigger (`workflow_dispatch`):**
+  1. Open repository **Actions > Build and Auto-Release Apex Location Tracker APK**.
+  2. Click **Run workflow** (leave tag empty for automatic versioning `v1.0.<run_number>`, or specify a custom tag).
+  3. The workflow compiles the APK and automatically publishes a new release.
+
+### 2. In-Place APK Updates on Android Devices
+* The workflow dynamically injects strictly incrementing project properties into Gradle:
+  `-PversionCode=${{ github.run_number }} -PversionName=1.0.${{ github.run_number }}`
+* Because `versionCode` increases monotonically with every GitHub Actions run, Android OS allows users to sideload updates directly over previous installations without uninstalling first or losing paired tokens.
+
+### 3. Downloading Pre-Compiled APKs
+* **GitHub Releases Latest Permalinks:**
+  * Releases Overview: [`https://github.com/layanmoyura/ai-finance-tracker/releases/latest`](https://github.com/layanmoyura/ai-finance-tracker/releases/latest)
+  * Direct Debug Sideload: [`ApexLocationTracker-debug.apk`](https://github.com/layanmoyura/ai-finance-tracker/releases/latest/download/ApexLocationTracker-debug.apk)
+  * Direct Release Sideload: [`ApexLocationTracker-release.apk`](https://github.com/layanmoyura/ai-finance-tracker/releases/latest/download/ApexLocationTracker-release.apk)
+* **Required GitHub Permission:**
+  * Ensure **Repository Settings > Actions > General > Workflow permissions** is set to **"Read and write permissions"** so the automated job can create release tags and upload `.apk` assets via `GITHUB_TOKEN`.
+

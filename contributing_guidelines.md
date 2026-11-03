@@ -99,6 +99,8 @@ When contributing to Apex LifeOS, you must strictly follow these platform invari
 * **Kinetic Stationary Lock:** When kinetic acceleration energy is $< 0.22\text{ m/s}^2$ and no footstep impulses occur, velocity must be strictly clamped to `0.0 km/h` to prevent false GPS drift and indoor jitter.
 * **Biometric Pedestrian Velocity:** Walking speed ($3.0 - 7.5\text{ km/h}$) must be derived from biometric kinetic step cadence via hardware `TYPE_STEP_DETECTOR`.
 * **Resilient Telemetry Ingestion:** `device_location_pings` RLS must allow background companion daemons to insert telemetry using the project anonymous key with a valid `user_id`. The web dashboard must maintain an active 3-second fallback polling cycle alongside Supabase Realtime subscriptions so that device telemetry reliably reaches the system even when WebSockets stall.
+* **CI/CD Auto-Release & Version Dynamics:** The companion APK workflow (`.github/workflows/build-tracker-apk.yml`) must automatically publish an official GitHub Release after every successful build on `main`. Releases must dynamically generate incrementing tags (`v1.0.<run_number>`) and inject `versionCode` and `versionName` into Gradle via project properties (`-PversionCode`, `-PversionName`). Hardcoding static release tags (e.g. `v1.0.0`) is strictly prohibited as it triggers API collision errors and breaks Android in-place app updates.
+* **Release Assets & Latest Permalink:** Builds must publish both stable permalink assets (`ApexLocationTracker-debug.apk`, `ApexLocationTracker-release.apk`) and version-stamped assets, updating `make_latest: true` so the web app's `/releases/latest` download button remains functional.
 
 ---
 
@@ -115,3 +117,4 @@ When contributing to Apex LifeOS, you must strictly follow these platform invari
 - [ ] All new database operations adhere to Row-Level Security (RLS).
 - [ ] Markdown documentation (`README.md`, `project_readme.md`, `contributing_guidelines.md`, `database_schema.md`, `setup_guide.md`) updated to reflect all code and architectural changes.
 - [ ] Directory tree and module lists in `README.md` and `project_readme.md` reflect all newly created or updated files.
+- [ ] Android companion changes maintain dynamic Gradle versioning (`-PversionCode` / `-PversionName`) and auto-release CI/CD workflow integrity.

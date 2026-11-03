@@ -1,4 +1,4 @@
-name: Build Apex Location Tracker APK
+name: Build and Auto-Release Apex Location Tracker APK
 
 on:
   workflow_dispatch:
@@ -12,15 +12,10 @@ on:
           - 'both'
           - 'debug'
           - 'release'
-      create_release:
-        description: 'Publish APK to GitHub Releases (Direct .apk download)'
-        required: false
-        default: true
-        type: boolean
       tag_name:
-        description: 'Release Tag Name (e.g. v1.0.0, if creating release)'
+        description: 'Release Tag Name (leave empty for automatic versioning e.g. v1.0.<run_number>)'
         required: false
-        default: 'v1.0.0'
+        default: ''
         type: string
   push:
     branches:
@@ -44,12 +39,14 @@ concurrency:
 
 jobs:
   build:
-    name: Build Android APK
+    name: Build & Release Android APK
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -76,66 +73,111 @@ jobs:
         run: |
           chmod +x android-companion/gradlew || true
 
+      - name: Determine Release Version & Tag
+        id: release_meta
+        run: |
+          RUN_NUM="${{ github.run_number }}"
+          BASE_VERSION="1.0"
+
+          # 1. Triggered by a pushed Git tag (e.g. v1.0.1, v2.0.0)
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            TAG_NAME="${{ github.ref_name }}"
+            RAW_VER="${TAG_NAME#v}"
+          # 2. Triggered manually via workflow_dispatch with a custom tag name
+          elif [ -n "${{ github.event.inputs.tag_name }}" ]; then
+            TAG_NAME="${{ github.event.inputs.tag_name }}"
+            RAW_VER="${TAG_NAME#v}"
+          # 3. Automatic release after every build (push to main or empty dispatch tag)
+          else
+            TAG_NAME="v${BASE_VERSION}.${RUN_NUM}"
+            RAW_VER="${BASE_VERSION}.${RUN_NUM}"
+          fi
+
+          echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
+          echo "version_name=${RAW_VER}" >> $GITHUB_OUTPUT
+          echo "version_code=${RUN_NUM}" >> $GITHUB_OUTPUT
+          echo "Resolved Tag Name: ${TAG_NAME}"
+          echo "Resolved Version Name: ${RAW_VER}"
+          echo "Resolved Version Code: ${RUN_NUM}"
+
       - name: Build APK with Gradle
         working-directory: android-companion
         run: |
           BUILD_TYPE="${{ github.event.inputs.build_type || 'both' }}"
-          echo "Selected build type: $BUILD_TYPE"
-          
+          VERSION_CODE="${{ steps.release_meta.outputs.version_code }}"
+          VERSION_NAME="${{ steps.release_meta.outputs.version_name }}"
+
+          echo "Compiling APK ($BUILD_TYPE) with Version: $VERSION_NAME (Code: $VERSION_CODE)"
+          GRADLE_ARGS="-Pandroid.useAndroidX=true -PversionCode=$VERSION_CODE -PversionName=$VERSION_NAME --stacktrace"
+
           if [ "$BUILD_TYPE" = "debug" ]; then
-            gradle assembleDebug --stacktrace -Pandroid.useAndroidX=true
+            gradle assembleDebug $GRADLE_ARGS
           elif [ "$BUILD_TYPE" = "release" ]; then
-            gradle assembleRelease --stacktrace -Pandroid.useAndroidX=true
+            gradle assembleRelease $GRADLE_ARGS
           else
-            gradle assembleDebug assembleRelease --stacktrace -Pandroid.useAndroidX=true
+            gradle assembleDebug assembleRelease $GRADLE_ARGS
           fi
 
       - name: Organize & Rename APK Outputs
         run: |
           mkdir -p output-apks
+          VER="${{ steps.release_meta.outputs.version_name }}"
+
           if [ -f "android-companion/app/build/outputs/apk/debug/app-debug.apk" ]; then
             cp android-companion/app/build/outputs/apk/debug/app-debug.apk output-apks/ApexLocationTracker-debug.apk
+            cp android-companion/app/build/outputs/apk/debug/app-debug.apk "output-apks/ApexLocationTracker-v${VER}-debug.apk"
             echo "Copied debug APK"
           fi
+
           if [ -f "android-companion/app/build/outputs/apk/release/app-release.apk" ]; then
             cp android-companion/app/build/outputs/apk/release/app-release.apk output-apks/ApexLocationTracker-release.apk
-            echo "Copied release APK"
+            cp android-companion/app/build/outputs/apk/release/app-release.apk "output-apks/ApexLocationTracker-v${VER}-release.apk"
+            echo "Copied signed release APK"
+          elif [ -f "android-companion/app/build/outputs/apk/release/app-release-unsigned.apk" ]; then
+            cp android-companion/app/build/outputs/apk/release/app-release-unsigned.apk output-apks/ApexLocationTracker-release.apk
+            cp android-companion/app/build/outputs/apk/release/app-release-unsigned.apk "output-apks/ApexLocationTracker-v${VER}-release.apk"
+            echo "Copied unsigned release APK"
           fi
+
           ls -la output-apks/
 
       - name: Upload APK Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: apex-location-tracker-apk
+          name: apex-location-tracker-apk-${{ steps.release_meta.outputs.tag_name }}
           path: output-apks/*.apk
           retention-days: 30
 
-      - name: Publish GitHub Release with APK
-        if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true')
+      - name: Auto Publish GitHub Release with APK
+        if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
           files: output-apks/*.apk
-          name: "Apex Location Tracker Companion APK ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || (github.event.inputs.tag_name != '' && github.event.inputs.tag_name) || 'v1.0.0' }}"
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || (github.event.inputs.tag_name != '' && github.event.inputs.tag_name) || 'v1.0.0' }}
+          name: "Apex Location Tracker Companion APK ${{ steps.release_meta.outputs.tag_name }}"
+          tag_name: ${{ steps.release_meta.outputs.tag_name }}
+          target_commitish: ${{ github.sha }}
           draft: false
           prerelease: false
+          make_latest: true
           generate_release_notes: true
           body: |
-            ### 🛰️ Apex Location Tracker Companion APK
+            ### 🛰️ Apex Location Tracker Companion APK (${{ steps.release_meta.outputs.tag_name }})
             
-            This release provides the compiled native Android companion APK for **Apex LifeOS** featuring the **Pure Kinetic Sensor Velocity Engine**.
+            This automated release was published after build `${{ steps.release_meta.outputs.tag_name }}` for **Apex LifeOS** featuring the **Pure Kinetic Sensor Velocity Engine**.
             
             #### 🚀 Pure Kinetic Sensor Architecture:
             - **Zero GPS Doppler Reliance**: Completely eliminated erratic satellite Doppler velocity calculations and phase-lock dropouts.
-            - **Hardware Kinetic Stationary Lock**: Clamps velocity strictly to $0.0\text{ km/h}$ when acceleration energy is $< 0.22\text{ m/s}^2$, permanently eliminating GPS multipath jitter and indoor desk wander.
+            - **Hardware Kinetic Stationary Lock**: Clamps velocity strictly to 0.0 km/h when acceleration energy is < 0.22 m/s², permanently eliminating GPS multipath jitter and indoor desk wander.
             - **Biometric Pedestrian Speed**: Computes walking velocity directly from kinetic step cadence via hardware `TYPE_STEP_DETECTOR`.
             - **Kinetic-Gated Vehicular Transit**: Dynamic velocity calculation scaled by kinetic vibration profiles.
             - **Instant Startup Fix**: Immediately dispatches cached fix on launch with continuous 10s telemetry heartbeat.
             - **Zero-Exposure Pairing**: AES-256 encrypted storage via Android Keystore; pair with 1-tap token or QR code.
             
             #### 📦 Downloads:
-            - **`ApexLocationTracker-debug.apk`**: Pre-signed debug APK, recommended for direct sideloading and testing.
+            - **`ApexLocationTracker-debug.apk`**: Pre-signed debug APK, recommended for direct sideloading and instant testing.
             - **`ApexLocationTracker-release.apk`**: Optimized release APK (pre-signed, ready to sideload).
+            - **`ApexLocationTracker-${{ steps.release_meta.outputs.tag_name }}-debug.apk`**: Version-stamped debug APK.
+            - **`ApexLocationTracker-${{ steps.release_meta.outputs.tag_name }}-release.apk`**: Version-stamped release APK.
             
             #### 📲 Installation Instructions:
             1. Download `ApexLocationTracker-debug.apk` directly on your Android device.
