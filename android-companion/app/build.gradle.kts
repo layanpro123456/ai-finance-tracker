@@ -13,8 +13,11 @@ android {
         applicationId = "com.apex.locationtracker"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        val buildVersionCode = project.findProperty("versionCode")?.toString()?.toIntOrNull() ?: 1
+        val buildVersionName = project.findProperty("versionName")?.toString() ?: "1.0.0"
+
+        versionCode = buildVersionCode
+        versionName = buildVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

@@ -2240,7 +2240,7 @@ export const LocationTimelineManager: React.FC<LocationTimelineManagerProps> = (
                   <Download className="w-4 h-4" />
                 </div>
                 <div className="text-left">
-                  <div className="text-white font-bold">Download Latest APK (v1.0.0)</div>
+                  <div className="text-white font-bold">Download Latest Android APK</div>
                   <div className="text-[10px] text-slate-400 font-normal">Direct .apk download from GitHub Releases</div>
                 </div>
               </div>

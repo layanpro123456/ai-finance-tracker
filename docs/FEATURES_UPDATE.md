@@ -56,6 +56,27 @@ Recent companion app improvements ensure reliable ping delivery:
 
 ---
 
+
+---
+
+### 4. 🚀 Automated Android Companion APK Auto-Release & CI/CD Pipeline
+Apex LifeOS now features fully automated continuous delivery for the native Android companion APK:
+
+* **Automatic Release Publishing After Every Build**:
+  * Pushing changes to `android-companion/**` or triggering manual runs in GitHub Actions automatically builds both Debug and Release APKs and creates a GitHub Release.
+  * Eliminates manual release drafting, manual tagging hurdles, and release collision errors.
+* **Dynamic Run-Number Semantic Versioning**:
+  * Resolves version tags dynamically as `v1.0.<run_number>` (or uses custom tag when triggered by a Git tag).
+  * Injects `versionCode` and `versionName` into Gradle at compile-time (`-PversionCode=${run_number}`, `-PversionName=1.0.${run_number}`).
+  * Enables seamless in-place APK updates on Android devices without requiring uninstallation.
+* **Direct Sideload Downloads & Permalinks**:
+  * Releases are tagged with `make_latest: true`, maintaining persistent download permalinks:
+    * **Latest Release**: `https://github.com/layanmoyura/ai-finance-tracker/releases/latest`
+    * **Direct Sideload Debug APK**: `https://github.com/layanmoyura/ai-finance-tracker/releases/latest/download/ApexLocationTracker-debug.apk`
+    * **Direct Sideload Release APK**: `https://github.com/layanmoyura/ai-finance-tracker/releases/latest/download/ApexLocationTracker-release.apk`
+* **In-App Pairing Modal Integration**:
+  * The web dashboard's **Location & Timeline > Connect Phone APK** modal features a direct 1-click **"Download Latest Android APK"** button that always resolves to the freshest build.
+
 ## 🏗️ Architecture & Component Integration
 
 ```mermaid
